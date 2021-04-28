@@ -13,13 +13,16 @@ typedef char string256[256];
 
 string256 logFilename;
 
-BOOL navmapEnabled;
 string256 navmapFormat;
 string256 navmapFilename;
 string256 navmapResult;
-BOOL exitWhenDone;
+bool exitWhenDone;
+
+bool badquit_reset;
 
 // signature scanner
+MODULEINFO mi;
+
 MODULEINFO GetModuleData(const char* moduleName)
 {
 	MODULEINFO currentModuleInfo = { 0 };
@@ -176,7 +179,7 @@ class MemoryStreamImpl : public iOutputStream
 	}
 };
 
-iMesh5_16* load_raw(iPathEngine5_16 *pathengine, const char *filename)
+iMesh* load_raw(iPathEngine *pathengine, const char *filename)
 {
 	FaceVertexMeshImpl m;
 
@@ -187,12 +190,12 @@ iMesh5_16* load_raw(iPathEngine5_16 *pathengine, const char *filename)
 	}
 
 	iFaceVertexMesh const * const pm = &m;
-	iMesh5_16 *real_mesh = pathengine->buildMeshFromContent(&pm, 1, 0);
-	
+	iMesh *real_mesh = pathengine->buildMeshFromContent(&pm, 1, 0);
+
 	return real_mesh;
 }
 
-iMesh5_16* load_xml(iPathEngine5_16 *pathengine, const char *filename)
+iMesh* load_xml(iPathEngine *pathengine, const char *filename)
 {
   FILE *f = fopen(filename, "rb");
   if(!f)
@@ -207,15 +210,15 @@ iMesh5_16* load_xml(iPathEngine5_16 *pathengine, const char *filename)
   
   fclose(f);
   
-  iMesh5_16 *real_mesh = pathengine->loadMeshFromBuffer("xml", (char*)buffer, length, 0);
+  iMesh *real_mesh = pathengine->loadMeshFromBuffer("xml", (char*)buffer, length, 0);
   free(buffer);
   
   return real_mesh;
 }
 
-void savemesh(iPathEngine5_16 *pathengine)
+void savemesh(iPathEngine *pathengine)
 {
-	iMesh5_16 *real_mesh;
+	iMesh *real_mesh;
 	
 	if(strcmp(navmapFormat, "raw") == 0)
 		real_mesh = load_raw(pathengine, navmapFilename);
@@ -361,12 +364,20 @@ void savemesh(iPathEngine5_16 *pathengine)
 	return;
 }
 
-DWORD WINAPI DllThread(LPVOID)
+void BadQuitReset()
 {
-	Sleep(5000);
+	HKEY hKey;
+	DWORD disposition;
+	if (RegCreateKeyEx(HKEY_CURRENT_USER, "Software\\4A-Games\\Metro2033", 0, NULL, 0, KEY_SET_VALUE, 0, &hKey,
+		&disposition) == ERROR_SUCCESS)
+	{
+		RegDeleteValue(hKey, "BadQuit");
+		RegCloseKey(hKey);
+	}
+}
 
-	MODULEINFO mi = GetModuleData(NULL);
-
+DWORD WINAPI NavMapThread(LPVOID)
+{
 	// ищем команду mov ecx, pathEngine
 	// B9 ? ? ? ? FF D2 C7 46 ? ? ? ? ? 8B C6 C3 CC CC CC CC CC CC CC CC CC CC CC CC CC CC
 	LPVOID mem = (LPVOID)FindPattern(
@@ -376,9 +387,16 @@ DWORD WINAPI DllThread(LPVOID)
 		"x????xxxx?????xxxxxxxxxxxxxxxxx");
 
 	// читаем адрес iPathEngine*
-	iPathEngine5_16* pathEngine = (iPathEngine5_16*)(*(DWORD*)(LPBYTE(mem) + 1));
+	iPathEngine* pathEngine = (iPathEngine*) (*(DWORD*)(LPBYTE(mem) + 1));
 
 	printf("pPathEngine = %08X\n", pathEngine);
+
+	Sleep(5000);
+
+	//while (*(DWORD*)pathEngine == NULL)
+	//{
+	//	Sleep(100);
+	//}
 
 	printf("InterfaceMajorVersion %d\n", pathEngine->getInterfaceMajorVersion());
 	printf("InterfaceMinorVersion %d\n", pathEngine->getInterfaceMinorVersion());
@@ -387,12 +405,15 @@ DWORD WINAPI DllThread(LPVOID)
 	pathEngine->getReleaseNumbers(i, j, k);
 	printf("ReleaseNumbers %d %d %d\n", i, j, k);
 
-	if(navmapEnabled)
+	savemesh(pathEngine);
+
+	if (exitWhenDone)
 	{
-		savemesh(pathEngine);
-		
-		if(exitWhenDone)
-			TerminateProcess(GetCurrentProcess(), 0);
+		if (!badquit_reset)
+		{
+			BadQuitReset();
+		}
+		TerminateProcess(GetCurrentProcess(), 0);
 	}
 
 	return 0;
@@ -402,10 +423,10 @@ DWORD WINAPI DllThread(LPVOID)
 FILE* fLog;
 CRITICAL_SECTION logCS;
 
-typedef void(__stdcall* /*__cdecl*/ _Log)(char* format, ...);
+typedef void(__cdecl* _Log)(char* format, ...);
 _Log Log_Orig = NULL;
 
-void /*__cdecl*/ Log_Hook(char* format, ...)
+void __cdecl Log_Hook(char* format, ...)
 {
 	EnterCriticalSection(&logCS);
 
@@ -426,8 +447,23 @@ void /*__cdecl*/ Log_Hook(char* format, ...)
 	LeaveCriticalSection(&logCS);
 }
 
-BOOL isTrue(const char* str)
+void ASMWrite(void* address, BYTE* code, size_t size)
 {
+	DWORD OldProtect = NULL;
+	VirtualProtect(address, size, PAGE_EXECUTE_READWRITE, &OldProtect);
+	memcpy(address, code, size);
+	VirtualProtect(address, size, OldProtect, &OldProtect);
+}
+
+void getString(const char* section_name, const char* str_name, const char* default_str, char* result, DWORD size)
+{
+	GetPrivateProfileString(section_name, str_name, default_str, result, size, ".\\developer.ini");
+}
+
+bool getBool(const char* section_name, const char* bool_name, bool default_bool)
+{
+	string256 str;
+	getString(section_name, bool_name, (default_bool ? "true" : "false"), str, sizeof(str));
 	return (strcmp(str, "true") == 0) || (strcmp(str, "yes") == 0) || (strcmp(str, "on") == 0) || (strcmp(str, "1") == 0);
 }
 
@@ -435,33 +471,20 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 {
 	if(reason == DLL_PROCESS_ATTACH)
 	{
-		// обходим краш на exe-шнике от Razor1911 (build 1830) (D3D: detected unknown videocard's vendor, that's unsupported!)
-		// metro2033.exe + 0x536596 jmp metro2033.exe + 0x536610
-		/*
-		HMODULE hMetro2033 = GetModuleHandle("metro2033.exe");
-		LPVOID videocard_message = LPBYTE(hMetro2033) + 0x536596;
-		BYTE code[] = { 0xEB, 0x78, 0x90, 0x90, 0x90 };
-		DWORD oldProtection;
-		VirtualProtect(videocard_message, sizeof(code), PAGE_EXECUTE_READWRITE, &oldProtection);
-		memcpy(videocard_message, &code, sizeof(code));
-		VirtualProtect(videocard_message, sizeof(code), oldProtection, &oldProtection);
-		*/
+		AllocConsole();
+		freopen("CONOUT$", "w", stdout);
 
-		// load settings
-		const char *cfg = ".\\developer.ini";
-		string256 str;
-		
-		GetPrivateProfileString("log", "filename", "uengine.log", logFilename, sizeof(logFilename), cfg);
-		GetPrivateProfileString("log", "enabled", "false", str, sizeof(str), cfg);
-		
-		if(isTrue(str))
+		printf("MetroDeveloper is loaded!\n");
+
+		mi = GetModuleData(NULL);
+
+		if(getBool("log", "enabled", false))
 		{
+			getString("log", "filename", "uengine.log", logFilename, sizeof(logFilename));
 			fLog = fopen(logFilename, "w");
 			if (fLog != NULL)
 			{
 				InitializeCriticalSection(&logCS);
-
-				MODULEINFO mi = GetModuleData(NULL);
 
 				// 81 EC ? ? ? ? 8B 8C 24 ? ? ? ? 53 56
 				LPVOID LogAddress = (LPVOID)FindPattern(
@@ -483,20 +506,57 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				}
 			}
 		}
-		
-		GetPrivateProfileString("nav_map", "format", "raw", navmapFormat, sizeof(navmapFormat), cfg);
-		GetPrivateProfileString("nav_map", "filename", "nav_map.raw", navmapFilename, sizeof(navmapFilename), cfg);
-		GetPrivateProfileString("nav_map", "result", "nav_map.pe", navmapResult, sizeof(navmapResult), cfg);
-		GetPrivateProfileString("nav_map", "exitwhendone", "false", str, sizeof(str), cfg);
-		exitWhenDone = isTrue(str);
-		GetPrivateProfileString("nav_map", "enabled", "false", str, sizeof(str), cfg);
-		navmapEnabled = isTrue(str);
 
-		AllocConsole();
-		freopen("CONOUT$", "w", stdout);
+		if (badquit_reset = getBool("other", "badquit_reset", false))
+		{
+			BadQuitReset();
+		}
 
-		HANDLE thread = CreateThread(NULL, 0, DllThread, NULL, 0, NULL);
-		CloseHandle(thread);
+		if (getBool("other", "no_videocard_msg", false))
+		{
+			// 68 ? ? ? ? BF ? ? ? ? 8D 74 24 ? E8 ? ? ? ? 83 C4 ? 80 7C 24 ? ? 75 - для версии с dlc
+			LPVOID VideoMsgAddress = (LPVOID)FindPattern(
+				(DWORD)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x68\x00\x00\x00\x00\xBF\x00\x00\x00\x00\x8D\x74\x24\x00\xE8\x00\x00\x00\x00\x83\xC4\x00\x80\x7C\x24\x00\x00\x75",
+				"x????x????xxx?x????xx?xxx??x");
+			BYTE VideoMsgJMP[] = { 0xEB, 0x5B };
+			if (VideoMsgAddress == NULL)
+			{
+				// 68 ? ? ? ? BF ? ? ? ? 8D 74 24 ? E8 ? ? ? ? 83 C4 ? 80 7C 24 ? ? 74 ? 8D 7C 24 - для версии без dlc
+				VideoMsgAddress = (LPVOID)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x68\x00\x00\x00\x00\xBF\x00\x00\x00\x00\x8D\x74\x24\x00\xE8\x00\x00\x00\x00\x83\xC4\x00\x80\x7C\x24\x00\x00\x74\x00\x8D\x7C\x24",
+					"x????x????xxx?x????xx?xxx??x?xxx");
+				VideoMsgJMP[1] = 0x78;
+			}
+			ASMWrite(VideoMsgAddress, VideoMsgJMP, sizeof(VideoMsgJMP));
+		}
+
+		if (getBool("other", "nointro", false))
+		{
+			// 51 0F B7 05
+			LPVOID IntroAddress = (LPVOID)FindPattern(
+				(DWORD)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x51\x0F\xB7\x05",
+				"xxxx");
+
+			BYTE ret[] = { 0xC3 };
+			ASMWrite(IntroAddress, ret, sizeof(ret));
+		}
+
+		if (strstr(GetCommandLine(), "-navmap"))
+		{
+			getString("nav_map", "format", "raw", navmapFormat, sizeof(logFilename));
+			getString("nav_map", "filename", "nav_map.raw", navmapFilename, sizeof(logFilename));
+			getString("nav_map", "result", "nav_map.pe", navmapResult, sizeof(logFilename));
+			exitWhenDone = getBool("nav_map", "exitwhendone", false);
+
+			HANDLE thread = CreateThread(NULL, 0, NavMapThread, NULL, 0, NULL);
+			CloseHandle(thread);
+		}
 	}
 	
 	return TRUE;
