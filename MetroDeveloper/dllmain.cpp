@@ -18,8 +18,6 @@ string256 navmapFilename;
 string256 navmapResult;
 bool exitWhenDone;
 
-bool badquit_reset;
-
 // signature scanner
 MODULEINFO mi;
 
@@ -376,6 +374,17 @@ void BadQuitReset()
 	}
 }
 
+typedef void* (__stdcall* _getConsole)();
+_getConsole getConsole = nullptr;
+
+void uconsole_server_impl_execute(void* console, const char* cmd)
+{
+	if (console != nullptr)
+	{
+		(*(void(__cdecl**)(void*, const char*)) (*(DWORD*)console + 28)) (console, cmd);
+	}
+}
+
 DWORD WINAPI NavMapThread(LPVOID)
 {
 	// ищем команду mov ecx, pathEngine
@@ -409,11 +418,7 @@ DWORD WINAPI NavMapThread(LPVOID)
 
 	if (exitWhenDone)
 	{
-		if (!badquit_reset)
-		{
-			BadQuitReset();
-		}
-		TerminateProcess(GetCurrentProcess(), 0);
+		uconsole_server_impl_execute(getConsole(), "quit");
 	}
 
 	return 0;
@@ -424,7 +429,7 @@ FILE* fLog;
 CRITICAL_SECTION logCS;
 
 typedef void(__cdecl* _Log)(char* format, ...);
-_Log Log_Orig = NULL;
+_Log Log_Orig = nullptr;
 
 void __cdecl Log_Hook(char* format, ...)
 {
@@ -467,6 +472,24 @@ bool getBool(const char* section_name, const char* bool_name, bool default_bool)
 	return (strcmp(str, "true") == 0) || (strcmp(str, "yes") == 0) || (strcmp(str, "on") == 0) || (strcmp(str, "1") == 0);
 }
 
+typedef void(__thiscall* _clevel_r_on_key_press)(void* _this, int key, int arg2, int arg3);
+_clevel_r_on_key_press clevel_r_on_key_press_Orig = nullptr;
+
+typedef void(__thiscall* _uconsole_server_impl_show)(void* console);
+_uconsole_server_impl_show uconsole_server_impl_show = nullptr;
+
+void __fastcall clevel_r_on_key_press_Hook(void* _this, void* _unused, int key, int arg2, int arg3)
+{
+	//printf("key = %d, arg2 = %d, arg3 = %d\n", key, arg2, arg3);
+
+	if (key == 39)
+	{
+		uconsole_server_impl_show(getConsole());
+	}
+
+	clevel_r_on_key_press_Orig(_this, key, arg2, arg3);
+}
+
 BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 {
 	if(reason == DLL_PROCESS_ATTACH)
@@ -477,6 +500,12 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 		printf("MetroDeveloper is loaded!\n");
 
 		mi = GetModuleData(NULL);
+
+		bool minhook = (MH_Initialize() == MH_OK);
+		if (!minhook)
+		{
+			MessageBox(NULL, "MinHook not initialized!", "MinHook", MB_OK | MB_ICONERROR);
+		}
 
 		if(getBool("log", "enabled", false))
 		{
@@ -493,21 +522,19 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 					(BYTE*)"\x81\xEC\x00\x00\x00\x00\x8B\x8C\x24\x00\x00\x00\x00\x53\x56",
 					"xx????xxx????xx");
 
-				if (MH_Initialize() == MH_OK) {
+				if (minhook) {
 					if (MH_CreateHook(LogAddress, &Log_Hook, reinterpret_cast<LPVOID*>(&Log_Orig)) == MH_OK) {
 						if (MH_EnableHook(LogAddress) != MH_OK) {
-							MessageBox(NULL, "Inclusion hook was not successful!", "Hook | Error", MB_OK | MB_ICONERROR);
+							MessageBox(NULL, "MH_EnableHook() != MH_OK", "Log Hook", MB_OK | MB_ICONERROR);
 						}
 					} else {
-						MessageBox(NULL, "Creating hook was not successful!", "Hook | Error", MB_OK | MB_ICONERROR);
+						MessageBox(NULL, "MH_CreateHook() != MH_OK", "Log Hook", MB_OK | MB_ICONERROR);
 					}
-				} else {
-					MessageBox(NULL, "MinHook not initialized!", "Hook | Error", MB_OK | MB_ICONERROR);
 				}
 			}
 		}
 
-		if (badquit_reset = getBool("other", "badquit_reset", false))
+		if (getBool("other", "badquit_reset", false))
 		{
 			BadQuitReset();
 		}
@@ -547,7 +574,47 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			ASMWrite(IntroAddress, ret, sizeof(ret));
 		}
 
-		if (strstr(GetCommandLine(), "-navmap"))
+		bool unlock_dev_console = getBool("other", "unlock_dev_console", false);
+		bool navmap = strstr(GetCommandLine(), "-navmap");
+
+		if (unlock_dev_console || navmap)
+		{
+			// 55 8B EC 83 E4 ? A1 ? ? ? ? 85 C0 56 57 75 ? E8 ? ? ? ? 85 C0 74 ? 8B F8 E8 ? ? ? ? EB ? 33 C0 8B F0 A3 ? ? ? ? E8 ? ? ? ? A1 ? ? ? ? 5F
+			getConsole = (_getConsole)FindPattern(
+				(DWORD)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\xA1\x00\x00\x00\x00\x85\xC0\x56\x57\x75\x00\xE8\x00\x00\x00\x00\x85\xC0\x74\x00\x8B\xF8\xE8\x00\x00\x00\x00\xEB\x00\x33\xC0\x8B\xF0\xA3\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xA1\x00\x00\x00\x00\x5F",
+				"xxxxx?x????xxxxx?x????xxx?xxx????x?xxxxx????x????x????x");
+		}
+
+		if(unlock_dev_console)
+		{
+			// 56 8B F1 80 7E 48 00
+			uconsole_server_impl_show = (_uconsole_server_impl_show)FindPattern(
+				(DWORD)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x56\x8B\xF1\x80\x7E\x48\x00",
+				"xxxxxxx");
+
+			// 51 55 8B E9 8B 0D
+			LPVOID clevel_r_on_key_press_Address = (LPVOID)FindPattern(
+				(DWORD)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x51\x55\x8B\xE9\x8B\x0D",
+				"xxxxxx");
+
+			if (minhook) {
+				if (MH_CreateHook(clevel_r_on_key_press_Address, &clevel_r_on_key_press_Hook, reinterpret_cast<LPVOID*>(&clevel_r_on_key_press_Orig)) == MH_OK) {
+					if (MH_EnableHook(clevel_r_on_key_press_Address) != MH_OK) {
+						MessageBox(NULL, "MH_EnableHook() != MH_OK", "clevel_r_on_key_press Hook", MB_OK | MB_ICONERROR);
+					}
+				} else {
+					MessageBox(NULL, "MH_CreateHook() != MH_OK", "clevel_r_on_key_press Hook", MB_OK | MB_ICONERROR);
+				}
+			}
+		}
+
+		if (navmap)
 		{
 			getString("nav_map", "format", "raw", navmapFormat, sizeof(logFilename));
 			getString("nav_map", "filename", "nav_map.raw", navmapFilename, sizeof(logFilename));
