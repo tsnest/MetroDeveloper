@@ -28,7 +28,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141_xp</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -158,14 +158,19 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="mfile.c" />
     <ClCompile Include="MinHook\buffer.c" />
     <ClCompile Include="MinHook\hook.c" />
     <ClCompile Include="MinHook\trampoline.c" />
     <ClCompile Include="MinHook\hde\hde32.c" />
     <ClCompile Include="MinHook\hde\hde64.c" />
+    <ClCompile Include="model.cpp" />
+    <ClCompile Include="tok_file.c" />
+    <ClCompile Include="tok_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="i_pathengine.h" />
+    <ClInclude Include="mfile.h" />
     <ClInclude Include="MinHook.h" />
     <ClInclude Include="MinHook\trampoline.h" />
     <ClInclude Include="MinHook\buffer.h" />
@@ -174,6 +179,8 @@
     <ClInclude Include="MinHook\hde\pstdint.h" />
     <ClInclude Include="MinHook\hde\table32.h" />
     <ClInclude Include="MinHook\hde\table64.h" />
+    <ClInclude Include="model.hpp" />
+    <ClInclude Include="tok_file.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

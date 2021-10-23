@@ -2,11 +2,15 @@
 
 #include <windows.h>
 #include <vector>
-#include <psapi.h>
 #include "i_pathengine.h"
 #include "MinHook.h"
+#include "model.hpp"
 
+#define PSAPI_VERSION 1
+#include <psapi.h>
 #pragma comment (lib, "psapi.lib")
+
+extern void convert_tok_to_bin(const void* tok_data, size_t tok_size, void** bin_data, size_t* bin_size, int _debug);
 
 // settings
 typedef char string256[256];
@@ -16,7 +20,15 @@ string256 logFilename;
 string256 navmapFormat;
 string256 navmapFilename;
 string256 navmapResult;
-bool exitWhenDone;
+bool navmap_ll_mode;
+bool supply_debug_info_ll;
+bool navmap_exit;
+bool isNavMapEnabled;
+bool isNavMapThreadCreated = false;
+
+bool isLogEnabled;
+
+bool isLL;
 
 // signature scanner
 MODULEINFO mi;
@@ -50,103 +62,37 @@ DWORD FindPattern(DWORD start_address, DWORD length, BYTE* pattern, char* mask)
 }
 
 // nav_map part
-struct Vec3f
-{
-	float x, y, z;
-};
-
-struct Face
-{
-	int v1, v2, v3;
-	int userData;
-	int surfaceType;
-};
-
-class FaceVertexMeshImpl : public iFaceVertexMesh
-{
-	public:
-	std::vector<Vec3f> m_points;
-	std::vector<Face> m_faces;
-
-	virtual tSigned32 faces() const { return m_faces.size(); };
-	virtual tSigned32 vertices() const { return m_points.size(); };
-	virtual tSigned32 vertexIndex(tSigned32 face, tSigned32 vertexInFace) const
-	{
-		//printf("vertexIndex face=%d vertexInFace=%d\n", face, vertexInFace);
-		switch(vertexInFace)
-		{
-			case 0:		return m_faces[face].v1;
-			case 1:		return m_faces[face].v2;
-			case 2:		return m_faces[face].v3;
-			default:	return -1;
-		}
-	};
-	virtual tSigned32 vertexX(tSigned32 v) const { return tSigned32(m_points[v].x * 1000); };
-	virtual tSigned32 vertexY(tSigned32 v) const { return tSigned32(m_points[v].z * 1000); };
-	virtual float vertexZ(tSigned32 v) const { return m_points[v].y * 1000; };
-	virtual tSigned32 faceAttribute(tSigned32 face, tSigned32 attributeIndex) const
-	{
-		switch(attributeIndex)
-		{
-			case PE_FaceAttribute_SurfaceType:		return m_faces[face].surfaceType;
-			case PE_FaceAttribute_UserData:			return m_faces[face].userData;
-			default:								return -1;
-		}
-	};
-
-	bool loadFromFile(const char *filename);
-};
-
-bool FaceVertexMeshImpl::loadFromFile(const char *filename)
-{
-	int version, count;
-	FILE *f;
-
-	f = fopen(filename, "rb");
-	if(!f)
-		return false;
-
-	fread(&version, 1, 4, f);
-	if(version != 1)
-	{
-		fclose(f);
-		return false;
-	}
-
-	fread(&count, 1, 4, f);
-	m_points.resize(count);
-	fread(&m_points.front(), sizeof(Vec3f), count, f);
-
-	fread(&count, 1, 4, f);
-	m_faces.resize(count);
-	for(int i = 0; i < count; i++)
-	{
-		fread(&m_faces[i].v1, 1, 4, f);
-		fread(&m_faces[i].v2, 1, 4, f);
-		fread(&m_faces[i].v3, 1, 4, f);
-		m_faces[i].surfaceType = 1;
-		m_faces[i].userData = -1;
-	}
-
-	fclose(f);
-	return true;
-}
-
 class MemoryStreamImpl : public iOutputStream
 {
 	public:
 	std::vector<char> m_data;
 
-	bool save(const char *filename)
+	bool save(const char *filename, bool isLL)
 	{
-		FILE *out = fopen(filename, "wb");
-		if(!out)
+		bool result;
+
+		FILE* out = fopen(filename, "wb");
+		if (!out)
 			return false;
 
-		size_t written = fwrite(&m_data.front(), 1, m_data.size(), out);
+		if (!isLL)
+		{
+			size_t written = fwrite(&m_data.front(), 1, m_data.size(), out);
+			result = (written == m_data.size());
+		}
+		else
+		{
+			void* bin_data;
+			size_t bin_size;
+			convert_tok_to_bin(&m_data[0], m_data.size(), &bin_data, &bin_size, supply_debug_info_ll);
+			size_t written = fwrite(bin_data, bin_size, 1, out);
+			result = (written == 1);
+			free(bin_data);
+		}
+
 		fclose(out);
 
-		return written == m_data.size();
+		return result;
 	}
 
 	const char *ptr()
@@ -177,54 +123,150 @@ class MemoryStreamImpl : public iOutputStream
 	}
 };
 
-iMesh* load_raw(iPathEngine *pathengine, const char *filename)
+iMesh* load_raw(iPathEngine* pathengine, const char* filename)
 {
 	FaceVertexMeshImpl m;
 
-	if(!m.loadFromFile(filename))
+	if (!m.load_raw(filename))
 	{
 		printf("raw mesh '%s' load failed\n", filename);
 		return NULL;
 	}
 
-	iFaceVertexMesh const * const pm = &m;
-	iMesh *real_mesh = pathengine->buildMeshFromContent(&pm, 1, 0);
+	iFaceVertexMesh const* const pm = &m;
+	iMesh* real_mesh = pathengine->buildMeshFromContent(&pm, 1, 0);
 
 	return real_mesh;
 }
 
-iMesh* load_xml(iPathEngine *pathengine, const char *filename)
+iMesh* load_4a(iPathEngine* pathengine, const char* filename)
 {
-  FILE *f = fopen(filename, "rb");
-  if(!f)
-    return NULL;
-    
-  fseek(f, 0, SEEK_END);
-  size_t length = ftell(f);
-  fseek(f, 0, SEEK_SET);
-  
-  void *buffer = malloc(length);
-  fread(buffer, 1, length, f);
-  
-  fclose(f);
-  
-  iMesh *real_mesh = pathengine->loadMeshFromBuffer("xml", (char*)buffer, length, 0);
-  free(buffer);
-  
-  return real_mesh;
+	FaceVertexMeshImpl m;
+
+	if (!m.load_4a(filename))
+	{
+		printf("4A mesh '%s' load failed\n", filename);
+		return NULL;
+	}
+
+	iFaceVertexMesh const* const pm = &m;
+	iMesh* real_mesh = pathengine->buildMeshFromContent(&pm, 1, 0);
+
+	return real_mesh;
+}
+
+iMesh* load_xml(iPathEngine* pathengine, const char* filename)
+{
+	FILE* f = fopen(filename, "rb");
+	if (!f)
+		return NULL;
+
+	fseek(f, 0, SEEK_END);
+	size_t length = ftell(f);
+	fseek(f, 0, SEEK_SET);
+
+	void* buffer = malloc(length);
+	fread(buffer, 1, length, f);
+
+	fclose(f);
+
+	iMesh* real_mesh = pathengine->loadMeshFromBuffer("xml", (char*)buffer, length, 0);
+	free(buffer);
+
+	return real_mesh;
+}
+
+void create_shapes_2033(iPathEngine* pathengine, iShape** shape1, iShape** shape2, iShape** shape3)
+{
+	tSigned32 shape1_data[] = {
+		-300, 0,
+		-150, 259,
+		150, 259,
+		300, 0,
+		150, -259,
+		-150, -259
+	};
+
+	*shape1 = pathengine->newShape(6, shape1_data);
+
+	tSigned32 shape2_data[] = {
+		-600, 0,
+		-300, 519,
+		300, 519,
+		600, 0,
+		300, -519,
+		-300, -519
+	};
+
+	*shape2 = pathengine->newShape(6, shape2_data);
+
+	tSigned32 shape3_data[] = {
+		-100, 0,
+		-50, 86,
+		50, 86,
+		100, 0,
+		50, -86,
+		-50, -86
+	};
+
+	*shape3 = pathengine->newShape(6, shape3_data);
+}
+
+void create_shapes_ll(iPathEngine* pathengine, iShape** shape1, iShape** shape2, iShape** shape3)
+{
+	tSigned32 shape1_data_ll[] = {
+		-350, 0,
+		-247, 247,
+		0, 350,
+		247, 247,
+		350, 0,
+		247, -247,
+		0, -350,
+		-247, -247
+	};
+
+	*shape1 = pathengine->newShape(8, shape1_data_ll);
+
+	tSigned32 shape2_data_ll[] = {
+		-600, 0,
+		-424, 424,
+		0, 600,
+		424, 424,
+		600, 0,
+		424, -424,
+		0, -600,
+		-424, -424
+	};
+
+	*shape2 = pathengine->newShape(8, shape2_data_ll);
+
+	tSigned32 shape3_data_ll[] = {
+		-100, 0,
+		-70, 70,
+		0, 100,
+		70, 70,
+		100, 0,
+		70, -70,
+		0, -100,
+		-70, -70
+	};
+
+	*shape3 = pathengine->newShape(8, shape3_data_ll);
 }
 
 void savemesh(iPathEngine *pathengine)
 {
 	iMesh *real_mesh;
 	
-	if(strcmp(navmapFormat, "raw") == 0)
+	if (strcmp(navmapFormat, "4a") == 0)
+		real_mesh = load_4a(pathengine, navmapFilename);
+	else if(strcmp(navmapFormat, "raw") == 0)
 		real_mesh = load_raw(pathengine, navmapFilename);
 	else if(strcmp(navmapFormat, "xml") == 0)
 		real_mesh = load_xml(pathengine, navmapFilename);
 	else
 		real_mesh = NULL;
-	
+
 	printf("real_mesh = %08X\n", real_mesh);
 	if(!real_mesh)
 		return;
@@ -240,53 +282,21 @@ void savemesh(iPathEngine *pathengine)
 	ctx->setSurfaceTypeTraverseCost(1, 0.1000f);
 	real_mesh->burnContextIntoMesh(ctx);
 
-	tSigned32 shape1_data[] = {
-		-300, 0,
-		-150, 259,
-		150, 259,
-		300, 0,
-		150, -259,
-		-150, -259
-	};
-	iShape *shape1 = pathengine->newShape(6, shape1_data);
-	printf("shape1 = %08X\n", shape1);
-	if(!shape1)
+	iShape* shape1, * shape2, * shape3;
+	if (!navmap_ll_mode /*isLL*/)
 	{
-		delete ctx;
-		delete real_mesh;
-		return;
+		create_shapes_2033(pathengine, &shape1, &shape2, &shape3);
+	}
+	else
+	{
+		create_shapes_ll(pathengine, &shape1, &shape2, &shape3);
 	}
 
-	tSigned32 shape2_data[] = {
-		-600, 0,
-		-300, 519,
-		300, 519,
-		600, 0,
-		300, -519,
-		-300, -519
-	};
-	iShape *shape2 = pathengine->newShape(6, shape2_data);
-	printf("shape2 = %08X\n", shape2);
-	if(!shape2)
-	{
-		delete shape1;
-		delete ctx;
-		delete real_mesh;
-		return;
-	}
+	printf("shape1 = %08X\nshape2 = %08X\nshape3 = %08X\n", shape1, shape2, shape3);
 
-	tSigned32 shape3_data[] = {
-		-100, 0,
-		-50, 86,
-		50, 86,
-		100, 0,
-		50, -86,
-		-50, -86
-	};
-	iShape *shape3 = pathengine->newShape(6, shape3_data);
-	printf("shape3 = %08X\n", shape3);
-	if(!shape3)
+	if (!shape1 || !shape2 || !shape3)
 	{
+		delete shape3;
 		delete shape2;
 		delete shape1;
 		delete ctx;
@@ -330,13 +340,13 @@ void savemesh(iPathEngine *pathengine)
 
 	result.putInt(3); // unknown, probably preprocess count
 
-	result.putFloat(0.3f); // unknwown1
+	result.putFloat(navmap_ll_mode /*isLL*/ ? 0.35f : 0.3f); // unknwown1
 	result.putInt(ms_cp[0].size());
 	result.put(ms_cp[0].ptr(), ms_cp[0].size());
 	result.putInt(ms_pfp[0].size());
 	result.put(ms_pfp[0].ptr(), ms_pfp[0].size());
 
-	result.putFloat(0.15f); // unknwown2
+	result.putFloat(0.6f); // unknwown2
 	result.putInt(ms_cp[1].size());
 	result.put(ms_cp[1].ptr(), ms_cp[1].size());
 	result.putInt(ms_pfp[1].size());
@@ -348,7 +358,7 @@ void savemesh(iPathEngine *pathengine)
 	result.putInt(ms_pfp[2].size());
 	result.put(ms_pfp[2].ptr(), ms_pfp[2].size());
 
-	result.save(navmapResult);
+	result.save(navmapResult, navmap_ll_mode /*isLL*/);
 
 	// free resources and exit
 	delete shape3;
@@ -366,7 +376,9 @@ void BadQuitReset()
 {
 	HKEY hKey;
 	DWORD disposition;
-	if (RegCreateKeyEx(HKEY_CURRENT_USER, "Software\\4A-Games\\Metro2033", 0, NULL, 0, KEY_SET_VALUE, 0, &hKey,
+	if (RegCreateKeyEx(HKEY_CURRENT_USER, 
+		!isLL ? "Software\\4A-Games\\Metro2033" : "Software\\4A-Games\\Metro2034"
+		, 0, NULL, 0, KEY_SET_VALUE, 0, &hKey,
 		&disposition) == ERROR_SUCCESS)
 	{
 		RegDeleteValue(hKey, "BadQuit");
@@ -374,39 +386,56 @@ void BadQuitReset()
 	}
 }
 
-typedef void* (__stdcall* _getConsole)();
-_getConsole getConsole = nullptr;
+typedef void* (__stdcall* _getConsole2033)();
+_getConsole2033 getConsole2033 = nullptr;
+void** g_console_LL = nullptr;
 
-void uconsole_server_impl_execute(void* console, const char* cmd)
+void* getConsole()
+{
+	if (!isLL)
+	{
+		return getConsole2033();
+	}
+	else
+	{
+		return *g_console_LL;
+	}
+}
+
+void uconsole_server_impl_execute_deffered(void* console, const char* fmt)
 {
 	if (console != nullptr)
 	{
-		(*(void(__cdecl**)(void*, const char*)) (*(DWORD*)console + 28)) (console, cmd);
+		typedef void(__cdecl* _execute_deffered) (void* console, const char* cmd, ...);
+		_execute_deffered execute_deffered = (_execute_deffered) *(DWORD*)(*(DWORD*)console + 32);
+		execute_deffered(console, fmt);
+	}
+}
+
+void uconsole_server_impl_execute(void* console, const char* fmt)
+{
+	if (console != nullptr)
+	{
+		typedef void(__cdecl* _execute) (void* console, const char* cmd, ...);
+		_execute execute = (_execute) *(DWORD*) (*(DWORD*)console + 28);
+		execute(console, fmt);
 	}
 }
 
 DWORD WINAPI NavMapThread(LPVOID)
 {
-	// ищем команду mov ecx, pathEngine
-	// B9 ? ? ? ? FF D2 C7 46 ? ? ? ? ? 8B C6 C3 CC CC CC CC CC CC CC CC CC CC CC CC CC CC
-	LPVOID mem = (LPVOID)FindPattern(
+	typedef iPathEngine* (__stdcall* _getPathEngine)();
+
+	// B8 ? ? ? ? A3 ? ? ? ? A3 ? ? ? ? B8 ? ? ? ? A3 ? ? ? ? A3 ? ? ? ? B8 ? ? ? ? A3 ? ? ? ? A3 ? ? ? ? B8 ? ? ? ? A3 ? ? ? ? A3 ? ? ? ? B8
+	_getPathEngine getPathEngine = (_getPathEngine)FindPattern(
 		(DWORD)mi.lpBaseOfDll,
 		mi.SizeOfImage,
-		(BYTE*)"\xB9\x00\x00\x00\x00\xFF\xD2\xC7\x46\x00\x00\x00\x00\x00\x8B\xC6\xC3\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC",
-		"x????xxxx?????xxxxxxxxxxxxxxxxx");
+		(BYTE*)"\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8",
+		"x????x????x????x????x????x????x????x????x????x????x????x????x");
 
-	// читаем адрес iPathEngine*
-	iPathEngine* pathEngine = (iPathEngine*) (*(DWORD*)(LPBYTE(mem) + 1));
+	iPathEngine* pathEngine = getPathEngine();
 
 	printf("pPathEngine = %08X\n", pathEngine);
-
-	Sleep(5000);
-
-	//while (*(DWORD*)pathEngine == NULL)
-	//{
-	//	Sleep(100);
-	//}
-
 	printf("InterfaceMajorVersion %d\n", pathEngine->getInterfaceMajorVersion());
 	printf("InterfaceMinorVersion %d\n", pathEngine->getInterfaceMinorVersion());
 
@@ -416,9 +445,9 @@ DWORD WINAPI NavMapThread(LPVOID)
 
 	savemesh(pathEngine);
 
-	if (exitWhenDone)
+	if (navmap_exit)
 	{
-		uconsole_server_impl_execute(getConsole(), "quit");
+		uconsole_server_impl_execute_deffered(getConsole(), "quit");
 	}
 
 	return 0;
@@ -428,28 +457,33 @@ DWORD WINAPI NavMapThread(LPVOID)
 FILE* fLog;
 CRITICAL_SECTION logCS;
 
-typedef void(__cdecl* _Log)(char* format, ...);
-_Log Log_Orig = nullptr;
+typedef void(__thiscall* _slog)(const char* s);
+_slog slog_Orig = nullptr;
 
-void __cdecl Log_Hook(char* format, ...)
+void __fastcall slog_Hook(const char* s)
 {
-	EnterCriticalSection(&logCS);
+	if (isNavMapEnabled && !isNavMapThreadCreated)
+	{
+		if (strstr(s, "* [loader] map loaded in "))
+		{
+			isNavMapThreadCreated = true;
+			HANDLE thread = CreateThread(NULL, 0, NavMapThread, NULL, 0, NULL);
+			CloseHandle(thread);
+		}
+	}
 
-	va_list v;
-	va_start(v, format);
+	if (isLogEnabled)
+	{
+		EnterCriticalSection(&logCS);
 
-	vfprintf(fLog, format, v);
+		fprintf(fLog, s);
+		fputc('\n', fLog);
+		fflush(fLog);
 
-	char toGameLog[0x1000];
-	vsprintf(toGameLog, format, v);
-	Log_Orig(toGameLog);
+		LeaveCriticalSection(&logCS);
+	}
 
-	va_end(v);
-
-	fputc('\n', fLog);
-	fflush(fLog);
-
-	LeaveCriticalSection(&logCS);
+	slog_Orig(s);
 }
 
 void ASMWrite(void* address, BYTE* code, size_t size)
@@ -462,7 +496,7 @@ void ASMWrite(void* address, BYTE* code, size_t size)
 
 void getString(const char* section_name, const char* str_name, const char* default_str, char* result, DWORD size)
 {
-	GetPrivateProfileString(section_name, str_name, default_str, result, size, ".\\developer.ini");
+	GetPrivateProfileString(section_name, str_name, default_str, result, size, ".\\MetroDeveloper.ini");
 }
 
 bool getBool(const char* section_name, const char* bool_name, bool default_bool)
@@ -472,32 +506,45 @@ bool getBool(const char* section_name, const char* bool_name, bool default_bool)
 	return (strcmp(str, "true") == 0) || (strcmp(str, "yes") == 0) || (strcmp(str, "on") == 0) || (strcmp(str, "1") == 0);
 }
 
-typedef void(__thiscall* _clevel_r_on_key_press)(void* _this, int key, int arg2, int arg3);
-_clevel_r_on_key_press clevel_r_on_key_press_Orig = nullptr;
+typedef void(__thiscall* _clevel_r_on_key_press_2033)(void* _this, int action, int key, int state);
+typedef void(__thiscall* _clevel_r_on_key_press_LL)(void* _this, int action, int key, int state, int resending);
+void* clevel_r_on_key_press_Orig = nullptr;
 
 typedef void(__thiscall* _uconsole_server_impl_show)(void* console);
 _uconsole_server_impl_show uconsole_server_impl_show = nullptr;
 
-void __fastcall clevel_r_on_key_press_Hook(void* _this, void* _unused, int key, int arg2, int arg3)
+void __fastcall clevel_r_on_key_press_Hook2033(void* _this, void* _unused, int action, int key, int state)
 {
-	//printf("key = %d, arg2 = %d, arg3 = %d\n", key, arg2, arg3);
+	//printf("action = %d, key = %d, state = %d\n", action, key, state);
 
-	if (key == 39)
+	if (key == 41)
 	{
 		uconsole_server_impl_show(getConsole());
 	}
 
-	clevel_r_on_key_press_Orig(_this, key, arg2, arg3);
+	((_clevel_r_on_key_press_2033)clevel_r_on_key_press_Orig)(_this, action, key, state);
+}
+
+void __fastcall clevel_r_on_key_press_HookLL(void* _this, void* _unused, int action, int key, int state, int resending)
+{
+	//printf("action = %d, key = %d, state = %d, resending = %d\n", action, key, state, resending);
+
+	if (key == 41)
+	{
+		uconsole_server_impl_show(getConsole());
+	}
+
+	((_clevel_r_on_key_press_LL)clevel_r_on_key_press_Orig)(_this, action, key, state, resending);
 }
 
 BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 {
 	if(reason == DLL_PROCESS_ATTACH)
 	{
-		AllocConsole();
-		freopen("CONOUT$", "w", stdout);
-
-		printf("MetroDeveloper is loaded!\n");
+		if (getBool("other", "beep", true))
+		{
+			Beep(1000, 200);
+		}
 
 		mi = GetModuleData(NULL);
 
@@ -507,29 +554,52 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			MessageBox(NULL, "MinHook not initialized!", "MinHook", MB_OK | MB_ICONERROR);
 		}
 
-		if(getBool("log", "enabled", false))
+		isLL = (GetModuleHandle("MetroLL.exe") != NULL);
+
+		isLogEnabled = getBool("log", "enabled", false);
+		if(isLogEnabled)
 		{
 			getString("log", "filename", "uengine.log", logFilename, sizeof(logFilename));
 			fLog = fopen(logFilename, "w");
 			if (fLog != NULL)
 			{
 				InitializeCriticalSection(&logCS);
+			}
+		}
 
-				// 81 EC ? ? ? ? 8B 8C 24 ? ? ? ? 53 56
-				LPVOID LogAddress = (LPVOID)FindPattern(
+		isNavMapEnabled = (!isLL && strstr(GetCommandLine(), "-navmap"));
+
+		if (isLogEnabled || isNavMapEnabled)
+		{
+			LPVOID slog_Address;
+
+			if (!isLL)
+			{
+				// B8 ? ? ? ? E8 ? ? ? ? 53 33 DB
+				slog_Address = (LPVOID)FindPattern(
 					(DWORD)mi.lpBaseOfDll,
 					mi.SizeOfImage,
-					(BYTE*)"\x81\xEC\x00\x00\x00\x00\x8B\x8C\x24\x00\x00\x00\x00\x53\x56",
-					"xx????xxx????xx");
+					(BYTE*)"\xB8\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x53\x33\xDB",
+					"x????x????xxx");
+			}
+			else
+			{
+				// B8 ? ? ? ? E8 ? ? ? ? 53 33 DB 56 33 C0
+				slog_Address = (LPVOID)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\xB8\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x53\x33\xDB\x56\x33\xC0",
+					"x????x????xxxxxx");
+			}
 
-				if (minhook) {
-					if (MH_CreateHook(LogAddress, &Log_Hook, reinterpret_cast<LPVOID*>(&Log_Orig)) == MH_OK) {
-						if (MH_EnableHook(LogAddress) != MH_OK) {
-							MessageBox(NULL, "MH_EnableHook() != MH_OK", "Log Hook", MB_OK | MB_ICONERROR);
-						}
-					} else {
-						MessageBox(NULL, "MH_CreateHook() != MH_OK", "Log Hook", MB_OK | MB_ICONERROR);
+			if (minhook) {
+				if (MH_CreateHook(slog_Address, &slog_Hook, reinterpret_cast<LPVOID*>(&slog_Orig)) == MH_OK) {
+					if (MH_EnableHook(slog_Address) != MH_OK) {
+						MessageBox(NULL, "MH_EnableHook() != MH_OK", "slog Hook", MB_OK | MB_ICONERROR);
 					}
+				}
+				else {
+					MessageBox(NULL, "MH_CreateHook() != MH_OK", "slog Hook", MB_OK | MB_ICONERROR);
 				}
 			}
 		}
@@ -539,7 +609,7 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			BadQuitReset();
 		}
 
-		if (getBool("other", "no_videocard_msg", false))
+		if (!isLL && getBool("other", "no_videocard_msg", false)) // Only metro 2033
 		{
 			// 68 ? ? ? ? BF ? ? ? ? 8D 74 24 ? E8 ? ? ? ? 83 C4 ? 80 7C 24 ? ? 75 - для версии с dlc
 			LPVOID VideoMsgAddress = (LPVOID)FindPattern(
@@ -561,50 +631,94 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			ASMWrite(VideoMsgAddress, VideoMsgJMP, sizeof(VideoMsgJMP));
 		}
 
-		if (getBool("other", "nointro", false))
+		if (isNavMapEnabled || getBool("other", "nointro", false))
 		{
-			// 51 0F B7 05
-			LPVOID IntroAddress = (LPVOID)FindPattern(
-				(DWORD)mi.lpBaseOfDll,
-				mi.SizeOfImage,
-				(BYTE*)"\x51\x0F\xB7\x05",
-				"xxxx");
+			LPVOID IntroAddress;
+			if (!isLL)
+			{
+				// 51 0F B7 05
+				IntroAddress = (LPVOID)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x51\x0F\xB7\x05",
+					"xxxx");
+			}
+			else
+			{
+				// 66 A1 ? ? ? ? 66 83 F8 06 73 15
+				IntroAddress = (LPVOID)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x66\xA1\x00\x00\x00\x00\x66\x83\xF8\x06\x73\x15",
+					"xx????xxxxxx");
+			}
 
 			BYTE ret[] = { 0xC3 };
 			ASMWrite(IntroAddress, ret, sizeof(ret));
 		}
 
 		bool unlock_dev_console = getBool("other", "unlock_dev_console", false);
-		bool navmap = strstr(GetCommandLine(), "-navmap");
 
-		if (unlock_dev_console || navmap)
+		if (unlock_dev_console || isNavMapEnabled)
 		{
-			// 55 8B EC 83 E4 ? A1 ? ? ? ? 85 C0 56 57 75 ? E8 ? ? ? ? 85 C0 74 ? 8B F8 E8 ? ? ? ? EB ? 33 C0 8B F0 A3 ? ? ? ? E8 ? ? ? ? A1 ? ? ? ? 5F
-			getConsole = (_getConsole)FindPattern(
-				(DWORD)mi.lpBaseOfDll,
-				mi.SizeOfImage,
-				(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\xA1\x00\x00\x00\x00\x85\xC0\x56\x57\x75\x00\xE8\x00\x00\x00\x00\x85\xC0\x74\x00\x8B\xF8\xE8\x00\x00\x00\x00\xEB\x00\x33\xC0\x8B\xF0\xA3\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xA1\x00\x00\x00\x00\x5F",
-				"xxxxx?x????xxxxx?x????xxx?xxx????x?xxxxx????x????x????x");
+			if (!isLL)
+			{
+				// 55 8B EC 83 E4 ? A1 ? ? ? ? 85 C0 56 57 75 ? E8 ? ? ? ? 85 C0 74 ? 8B F8 E8 ? ? ? ? EB ? 33 C0 8B F0 A3 ? ? ? ? E8 ? ? ? ? A1 ? ? ? ? 5F
+				getConsole2033 = (_getConsole2033)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\xA1\x00\x00\x00\x00\x85\xC0\x56\x57\x75\x00\xE8\x00\x00\x00\x00\x85\xC0\x74\x00\x8B\xF8\xE8\x00\x00\x00\x00\xEB\x00\x33\xC0\x8B\xF0\xA3\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xA1\x00\x00\x00\x00\x5F",
+					"xxxxx?x????xxxxx?x????xxx?xxx????x?xxxxx????x????x????x");
+			}
+			else
+			{
+				// ищем команду mov ecx, g_console
+				// 8B 0D ? ? ? ? 85 C9 75 17 E8 ? ? ? ? 8B C8 A3 ? ? ? ? E8 ? ? ? ? 8B 0D ? ? ? ? 8B 01 8B 50 18 FF D2 A1 ? ? ? ? 85 C0 75 16
+				LPVOID mem = (LPVOID)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x8B\x0D\x00\x00\x00\x00\x85\xC9\x75\x17\xE8\x00\x00\x00\x00\x8B\xC8\xA3\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x8B\x0D\x00\x00\x00\x00\x8B\x01\x8B\x50\x18\xFF\xD2\xA1\x00\x00\x00\x00\x85\xC0\x75\x16",
+					"xx????xxxxx????xxx????x????xx????xxxxxxxx????xxxx");
+
+				// читаем адрес g_console
+				g_console_LL = (void**)(*(DWORD*)(LPBYTE(mem) + 2));
+			}
 		}
 
 		if(unlock_dev_console)
 		{
-			// 56 8B F1 80 7E 48 00
-			uconsole_server_impl_show = (_uconsole_server_impl_show)FindPattern(
-				(DWORD)mi.lpBaseOfDll,
-				mi.SizeOfImage,
-				(BYTE*)"\x56\x8B\xF1\x80\x7E\x48\x00",
-				"xxxxxxx");
-
-			// 51 55 8B E9 8B 0D
-			LPVOID clevel_r_on_key_press_Address = (LPVOID)FindPattern(
-				(DWORD)mi.lpBaseOfDll,
-				mi.SizeOfImage,
-				(BYTE*)"\x51\x55\x8B\xE9\x8B\x0D",
-				"xxxxxx");
+			if (!isLL)
+			{
+				// 56 8B F1 80 7E 48 00
+				uconsole_server_impl_show = (_uconsole_server_impl_show)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x56\x8B\xF1\x80\x7E\x48\x00",
+					"xxxxxxx");
+			}
+			else
+			{
+				// 55 8B EC 83 E4 F8 83 EC 0C 53 56 8B F1 33 DB
+				uconsole_server_impl_show = (_uconsole_server_impl_show)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x55\x8B\xEC\x83\xE4\xF8\x83\xEC\x0C\x53\x56\x8B\xF1\x33\xDB",
+					"xxxxxxxxxxxxxxx");
+			}
 
 			if (minhook) {
-				if (MH_CreateHook(clevel_r_on_key_press_Address, &clevel_r_on_key_press_Hook, reinterpret_cast<LPVOID*>(&clevel_r_on_key_press_Orig)) == MH_OK) {
+				// 51 ? 8B ? 8B 0D ? ? ? ? 85
+				LPVOID clevel_r_on_key_press_Address = (LPVOID)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x51\x00\x8B\x00\x8B\x0D\x00\x00\x00\x00\x85",
+					"x?x?xx????x");
+
+				MH_STATUS status = MH_CreateHook(clevel_r_on_key_press_Address, 
+					(isLL ? (LPVOID)&clevel_r_on_key_press_HookLL : (LPVOID)&clevel_r_on_key_press_Hook2033),
+					reinterpret_cast<LPVOID*>(&clevel_r_on_key_press_Orig));
+
+				if (status == MH_OK) {
 					if (MH_EnableHook(clevel_r_on_key_press_Address) != MH_OK) {
 						MessageBox(NULL, "MH_EnableHook() != MH_OK", "clevel_r_on_key_press Hook", MB_OK | MB_ICONERROR);
 					}
@@ -614,15 +728,21 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			}
 		}
 
-		if (navmap)
+		if (isNavMapEnabled)
 		{
+			AllocConsole();
+			freopen("CONOUT$", "w", stdout);
+
 			getString("nav_map", "format", "raw", navmapFormat, sizeof(logFilename));
 			getString("nav_map", "filename", "nav_map.raw", navmapFilename, sizeof(logFilename));
-			getString("nav_map", "result", "nav_map.pe", navmapResult, sizeof(logFilename));
-			exitWhenDone = getBool("nav_map", "exitwhendone", false);
-
-			HANDLE thread = CreateThread(NULL, 0, NavMapThread, NULL, 0, NULL);
-			CloseHandle(thread);
+			navmap_ll_mode = getBool("nav_map", "last_light_mode", false);
+			supply_debug_info_ll = getBool("nav_map", "supply_debug_info_ll", false);
+			if (!navmap_ll_mode) {
+				getString("nav_map", "result_2033", "nav_map.pe", navmapResult, sizeof(logFilename));
+			} else {
+				getString("nav_map", "result_ll", "nav_map.bin", navmapResult, sizeof(logFilename));
+			}
+			navmap_exit = getBool("nav_map", "exitwhendone", false);
 		}
 	}
 	

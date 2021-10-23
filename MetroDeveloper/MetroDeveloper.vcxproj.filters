@@ -45,6 +45,18 @@
     <ClCompile Include="MinHook\hde\hde64.c">
       <Filter>Файлы исходного кода\MinHook\hde</Filter>
     </ClCompile>
+    <ClCompile Include="model.cpp">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
+    <ClCompile Include="tok_file.c">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
+    <ClCompile Include="mfile.c">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
+    <ClCompile Include="tok_test.cpp">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="i_pathengine.h">
@@ -73,6 +85,15 @@
     </ClInclude>
     <ClInclude Include="MinHook\hde\table64.h">
       <Filter>Заголовочные файлы\MinHook\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="model.hpp">
+      <Filter>Заголовочные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="tok_file.h">
+      <Filter>Заголовочные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="mfile.h">
+      <Filter>Заголовочные файлы</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
