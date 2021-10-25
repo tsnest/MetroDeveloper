@@ -386,21 +386,8 @@ void BadQuitReset()
 	}
 }
 
-typedef void* (__stdcall* _getConsole2033)();
-_getConsole2033 getConsole2033 = nullptr;
-void** g_console_LL = nullptr;
-
-void* getConsole()
-{
-	if (!isLL)
-	{
-		return getConsole2033();
-	}
-	else
-	{
-		return *g_console_LL;
-	}
-}
+typedef void* (__stdcall* _getConsole)();
+_getConsole getConsole = nullptr;
 
 void uconsole_server_impl_execute_deffered(void* console, const char* fmt)
 {
@@ -537,10 +524,74 @@ void __fastcall clevel_r_on_key_press_HookLL(void* _this, void* _unused, int act
 	((_clevel_r_on_key_press_LL)clevel_r_on_key_press_Orig)(_this, action, key, state, resending);
 }
 
+LPVOID vfs_ropen_Orig = nullptr;
+LPVOID vfs_ropen_os = nullptr;
+
+//char format[] = "%s\n";
+
+__declspec(naked) void vfs_ropen_Hook(/*const char* fn*/)
+{
+	__asm
+	{
+		/*
+		mov eax, [esp + 4]
+		push eax
+		mov eax, offset format
+		push eax
+		call printf
+		add esp, 8
+		*/
+
+		mov eax, [esp + 4]
+		push eax
+		call GetFileAttributesA
+		cmp eax, 0xFFFFFFFF
+		je to_orig_code
+	}
+
+	if (!isLL)
+	{
+		__asm
+		{
+			push edi
+			push esi
+			mov edi, esi
+			mov eax, [esp + 0x0C]
+			push eax
+			call vfs_ropen_os
+			add esp, 4
+			pop esi
+			pop edi
+			ret
+		}
+	}
+	else
+	{
+		__asm
+		{
+			mov eax, [esp + 4]
+			push eax
+			push esi
+			call vfs_ropen_os
+			add esp, 8
+			ret
+		}
+	}
+
+	__asm
+	{
+	to_orig_code:
+		jmp vfs_ropen_Orig
+	}
+}
+
 BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 {
 	if(reason == DLL_PROCESS_ATTACH)
 	{
+		//AllocConsole();
+		//freopen("CONOUT$", "w", stdout);
+
 		if (getBool("other", "beep", true))
 		{
 			Beep(1000, 200);
@@ -564,6 +615,44 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			if (fLog != NULL)
 			{
 				InitializeCriticalSection(&logCS);
+			}
+		}
+
+		if (getBool("other", "unlock_content_folder", false))
+		{
+			// 55 8B EC 83 E4 ? 83 EC ? 53 57 8D 44 24
+			LPVOID vfs_ropen_Address = (LPVOID)FindPattern(
+				(DWORD)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\x83\xEC\x00\x53\x57\x8D\x44\x24",
+				"xxxxx?xx?xxxxx");
+
+			if (!isLL)
+			{
+				// 55 8B EC 83 E4 ? 81 EC ? ? ? ? 53 8B 1D ? ? ? ? 56 8D 44 24
+				vfs_ropen_os = (LPVOID)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\x81\xEC\x00\x00\x00\x00\x53\x8B\x1D\x00\x00\x00\x00\x56\x8D\x44\x24",
+					"xxxxx?xx????xxx????xxxx");
+			}
+			else
+			{
+				// 55 8B EC 83 E4 ? 81 EC ? ? ? ? 56 57 8B 3D ? ? ? ? 8D 44 24
+				vfs_ropen_os = (LPVOID)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\x81\xEC\x00\x00\x00\x00\x56\x57\x8B\x3D\x00\x00\x00\x00\x8D\x44\x24",
+					"xxxxx?xx????xxxx????xxx");
+			}
+
+			if (MH_CreateHook(vfs_ropen_Address, &vfs_ropen_Hook, reinterpret_cast<LPVOID*>(&vfs_ropen_Orig)) == MH_OK) {
+				if (MH_EnableHook(vfs_ropen_Address) != MH_OK) {
+					MessageBox(NULL, "MH_EnableHook() != MH_OK", "vfs_ropen Hook", MB_OK | MB_ICONERROR);
+				}
+			}
+			else {
+				MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_ropen Hook", MB_OK | MB_ICONERROR);
 			}
 		}
 
@@ -664,7 +753,7 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			if (!isLL)
 			{
 				// 55 8B EC 83 E4 ? A1 ? ? ? ? 85 C0 56 57 75 ? E8 ? ? ? ? 85 C0 74 ? 8B F8 E8 ? ? ? ? EB ? 33 C0 8B F0 A3 ? ? ? ? E8 ? ? ? ? A1 ? ? ? ? 5F
-				getConsole2033 = (_getConsole2033)FindPattern(
+				getConsole = (_getConsole)FindPattern(
 					(DWORD)mi.lpBaseOfDll,
 					mi.SizeOfImage,
 					(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\xA1\x00\x00\x00\x00\x85\xC0\x56\x57\x75\x00\xE8\x00\x00\x00\x00\x85\xC0\x74\x00\x8B\xF8\xE8\x00\x00\x00\x00\xEB\x00\x33\xC0\x8B\xF0\xA3\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xA1\x00\x00\x00\x00\x5F",
@@ -672,16 +761,12 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			}
 			else
 			{
-				// ищем команду mov ecx, g_console
-				// 8B 0D ? ? ? ? 85 C9 75 17 E8 ? ? ? ? 8B C8 A3 ? ? ? ? E8 ? ? ? ? 8B 0D ? ? ? ? 8B 01 8B 50 18 FF D2 A1 ? ? ? ? 85 C0 75 16
-				LPVOID mem = (LPVOID)FindPattern(
+				// 55 8B EC 83 E4 ? A1 ? ? ? ? 85 C0 75 ? E8 ? ? ? ? 8B C8 A3 ? ? ? ? E8 ? ? ? ? A1 ? ? ? ? 8B E5
+				getConsole = (_getConsole)FindPattern(
 					(DWORD)mi.lpBaseOfDll,
 					mi.SizeOfImage,
-					(BYTE*)"\x8B\x0D\x00\x00\x00\x00\x85\xC9\x75\x17\xE8\x00\x00\x00\x00\x8B\xC8\xA3\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x8B\x0D\x00\x00\x00\x00\x8B\x01\x8B\x50\x18\xFF\xD2\xA1\x00\x00\x00\x00\x85\xC0\x75\x16",
-					"xx????xxxxx????xxx????x????xx????xxxxxxxx????xxxx");
-
-				// читаем адрес g_console
-				g_console_LL = (void**)(*(DWORD*)(LPBYTE(mem) + 2));
+					(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\xA1\x00\x00\x00\x00\x85\xC0\x75\x00\xE8\x00\x00\x00\x00\x8B\xC8\xA3\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xA1\x00\x00\x00\x00\x8B\xE5",
+					"xxxxx?x????xxx?x????xxx????x????x????xx");
 			}
 		}
 
