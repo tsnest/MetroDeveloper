@@ -650,10 +650,20 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				if (MH_EnableHook(vfs_ropen_Address) != MH_OK) {
 					MessageBox(NULL, "MH_EnableHook() != MH_OK", "vfs_ropen Hook", MB_OK | MB_ICONERROR);
 				}
-			}
-			else {
+			} else {
 				MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_ropen Hook", MB_OK | MB_ICONERROR);
 			}
+
+			// нопаем условный прыжок на функцию mesh_server_load_geom_fast, что-бы вызывалась mesh_server_load_geom_slow
+			// 75 ? 53 E8 ? ? ? ? EB ? 8B C3
+			LPVOID mesh_server_load_geom_jnz = (LPVOID)FindPattern(
+				(DWORD)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x75\x00\x53\xE8\x00\x00\x00\x00\xEB\x00\x8B\xC3",
+				"x?xx????x?xx");
+
+			BYTE NOP[] = { 0x90, 0x90 };
+			ASMWrite(mesh_server_load_geom_jnz, NOP, sizeof(NOP));
 		}
 
 		isNavMapEnabled = (!isLL && strstr(GetCommandLine(), "-navmap"));
