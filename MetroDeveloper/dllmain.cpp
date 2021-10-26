@@ -585,6 +585,39 @@ __declspec(naked) void vfs_ropen_Hook(/*const char* fn*/)
 	}
 }
 
+typedef char (__cdecl* _method)(void* a1, void** buffer, size_t size);
+typedef void (__cdecl* _vfs_rbuffered)(const char* fn, void* a1, _method method);
+_vfs_rbuffered vfs_rbuffered_Orig = nullptr;
+
+void __cdecl vfs_rbuffered_Hook(const char* fn, void* a1, _method method)
+{
+	//printf("%s\n", fn);
+
+	if (GetFileAttributes(fn) != 0xFFFFFFFF)
+	{
+		size_t size;
+
+		size_t buffer_size = (isLL ? 0x10000 : 0x20000);
+		void* buffer = malloc(buffer_size);
+
+		if (buffer)
+		{
+			FILE* f = fopen(fn, "rb");
+			if (f)
+			{
+				while (size = fread(buffer, 1, buffer_size, f))
+					method(a1, isLL ? &buffer : (void**)buffer, size);
+
+				fclose(f);
+			}
+			free(buffer);
+			return;
+		}
+	}
+
+	vfs_rbuffered_Orig(fn, a1, method);
+}
+
 BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 {
 	if(reason == DLL_PROCESS_ATTACH)
@@ -627,6 +660,8 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\x83\xEC\x00\x53\x57\x8D\x44\x24",
 				"xxxxx?xx?xxxxx");
 
+			LPVOID vfs_rbuffered_Address;
+
 			if (!isLL)
 			{
 				// 55 8B EC 83 E4 ? 81 EC ? ? ? ? 53 8B 1D ? ? ? ? 56 8D 44 24
@@ -635,6 +670,13 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 					mi.SizeOfImage,
 					(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\x81\xEC\x00\x00\x00\x00\x53\x8B\x1D\x00\x00\x00\x00\x56\x8D\x44\x24",
 					"xxxxx?xx????xxx????xxxx");
+
+				// 55 8B EC 83 E4 ? 83 EC ? 53 56 57 8D 44 24 ? 50
+				vfs_rbuffered_Address = (LPVOID)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\x83\xEC\x00\x53\x56\x57\x8D\x44\x24\x00\x50",
+					"xxxxx?xx?xxxxxx?x");
 			}
 			else
 			{
@@ -644,6 +686,13 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 					mi.SizeOfImage,
 					(BYTE*)"\x55\x8B\xEC\x83\xE4\x00\x81\xEC\x00\x00\x00\x00\x56\x57\x8B\x3D\x00\x00\x00\x00\x8D\x44\x24",
 					"xxxxx?xx????xxxx????xxx");
+
+				// 83 EC ? 53 55 56 57 8D 44 24 ? 50
+				vfs_rbuffered_Address = (LPVOID)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x83\xEC\x00\x53\x55\x56\x57\x8D\x44\x24\x00\x50",
+					"xx?xxxxxxx?x");
 			}
 
 			if (MH_CreateHook(vfs_ropen_Address, &vfs_ropen_Hook, reinterpret_cast<LPVOID*>(&vfs_ropen_Orig)) == MH_OK) {
@@ -654,16 +703,13 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_ropen Hook", MB_OK | MB_ICONERROR);
 			}
 
-			// нопаем условный прыжок на функцию mesh_server_load_geom_fast, что-бы вызывалась mesh_server_load_geom_slow
-			// 75 ? 53 E8 ? ? ? ? EB ? 8B C3
-			LPVOID mesh_server_load_geom_jnz = (LPVOID)FindPattern(
-				(DWORD)mi.lpBaseOfDll,
-				mi.SizeOfImage,
-				(BYTE*)"\x75\x00\x53\xE8\x00\x00\x00\x00\xEB\x00\x8B\xC3",
-				"x?xx????x?xx");
-
-			BYTE NOP[] = { 0x90, 0x90 };
-			ASMWrite(mesh_server_load_geom_jnz, NOP, sizeof(NOP));
+			if (MH_CreateHook(vfs_rbuffered_Address, &vfs_rbuffered_Hook, reinterpret_cast<LPVOID*>(&vfs_rbuffered_Orig)) == MH_OK) {
+				if (MH_EnableHook(vfs_rbuffered_Address) != MH_OK) {
+					MessageBox(NULL, "MH_EnableHook() != MH_OK", "vfs_rbuffered Hook", MB_OK | MB_ICONERROR);
+				}
+			} else {
+				MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_rbuffered Hook", MB_OK | MB_ICONERROR);
+			}
 		}
 
 		isNavMapEnabled = (!isLL && strstr(GetCommandLine(), "-navmap"));
