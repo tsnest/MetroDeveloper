@@ -651,6 +651,19 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			}
 		}
 
+		if (isLL && getBool("other", "ll_allow_dds", false))
+		{
+			// 75 31 8B 3F
+			LPVOID jne = (LPVOID)FindPattern(
+				(DWORD)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x75\x31\x8B\x3F",
+				"xxxx");
+
+			BYTE JMP[] = { 0xEB };
+			ASMWrite(jne, JMP, sizeof(JMP));
+		}
+
 		if (getBool("other", "unlock_content_folder", false))
 		{
 			// 55 8B EC 83 E4 ? 83 EC ? 53 57 8D 44 24
