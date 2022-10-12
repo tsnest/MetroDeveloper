@@ -169,8 +169,10 @@
     <ClCompile Include="model.cpp" />
     <ClCompile Include="tok_file.c" />
     <ClCompile Include="tok_test.cpp" />
+    <ClCompile Include="uconsole.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="iwriter.h" />
     <ClInclude Include="i_pathengine.h" />
     <ClInclude Include="mfile.h" />
     <ClInclude Include="MinHook.h" />
@@ -183,6 +185,7 @@
     <ClInclude Include="MinHook\hde\table64.h" />
     <ClInclude Include="model.hpp" />
     <ClInclude Include="tok_file.h" />
+    <ClInclude Include="uconsole.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

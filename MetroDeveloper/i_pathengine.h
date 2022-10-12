@@ -93,7 +93,7 @@ public:
     virtual iMesh* loadMeshFromBuffer(const char* format, const char* dataBuffer, tUnsigned32 bufferSize, const char *const* options) = 0;
 
     // TSNest: method added to metro2033
-    virtual iMesh* loadMeshFromStream(int unknown, const char* const* options) = 0;
+    virtual iMesh* loadMeshFromStream(void* db_file_reader) = 0;
 
     virtual iMesh* buildMeshFromContent(const iFaceVertexMesh* const* geometryObjectPointers, tSigned32 numberOfGeometryObjects, const char *const* options) = 0;
     virtual void saveContentData(const iFaceVertexMesh* const* geometryObjectPointers, tSigned32 numberOfGeometryObjects, const char* format, iOutputStream* os) = 0;
@@ -132,6 +132,9 @@ public:
     }
 };
 
+// TSNest
+//#include "iwriter.h"
+
 class iMesh
 {
 public:
@@ -159,23 +162,40 @@ public:
     virtual cPosition positionInSection(tSigned32 sectionID, tSigned32 x, tSigned32 y) const = 0;
     virtual cPosition positionInSectionFor3DPoint(tSigned32 sectionID, const tSigned32* point) const = 0;
     virtual cPosition positionInSectionFor3DPointF(tSigned32 sectionID, const float* point) const = 0;
-    virtual cPosition positionInSectionNear3DPoint(tSigned32 sectionID, const tSigned32* point, tSigned32 horizontalRange, tSigned32 verticalRange) const = 0;
+	virtual cPosition positionInSectionNear3DPoint(tSigned32 sectionID, const tSigned32* point, tSigned32 horizontalRange, tSigned32 verticalRange) const = 0;
+	// TSNest LL
+    //virtual cPosition positionInSectionNear3DPointEx(tSigned32 sectionID, const tSigned32* pointFrom, const tSigned32* pointFor, tSigned32 horizontalRange, tSigned32 verticalRange) const = 0;
+
     virtual cPosition positionFor3DPoint_ExcludeTerrain(const tSigned32* point, tSigned32 numberOfTerrainLayers) const = 0;
+	// TSNest arktika
+	//virtual cPosition positionWithMaxHeight() const = 0;
+	//virtual cPosition positionWithMaxHeightNearVector() const = 0;
+
     virtual cPosition generateRandomPosition() const = 0;
     virtual cPosition generateRandomPositionLocally(const cPosition& centre, tSigned32 range) const = 0;
+	// TSNest orig method deleted in arktika
     virtual cPosition generateRandomPositionInSection(tSigned32 sectionID) const = 0;
+
     virtual tSigned32 heightAtPosition(const cPosition& position) const = 0;
     virtual float heightAtPositionF(const cPosition& position) const = 0;
     virtual float heightAtPositionWithPrecision(const cPosition& position, float precisionX, float precisionY) const = 0;
+	// TSNest LL
+	//virtual float heightsAlongPath() const = 0;
+	//virtual void getNormalF() const = 0;
+
     virtual tSigned32 getCellForEndOfLine(const cPosition& start, tSigned32 endX, tSigned32 endY) const = 0;
     virtual bool positionIsValid(const cPosition& p) const = 0;
 
-    // TSNest: Modera method's
+	// TSNest arktika
+	//virtual bool pointIsInsideWorld() const = 0;
+
+    // TSNest: Modera method's 2033
     virtual void dummy1() = 0;
     virtual void dummy2() = 0;
 
     virtual void burnContextIntoMesh(const iCollisionContext* context) = 0;
     virtual void saveGround(const char* format, bool includeMapping, iOutputStream* outputStream) const = 0;
+	//virtual void saveGround(iwriter* w) const = 0;
     virtual void setTerrainCallBack(tSigned32 terrainLayer, iTerrainCallBack* callBack) = 0;
     virtual tSigned32 addEndPoint(const cPosition& position) = 0;
     virtual tSigned32 addOffMeshConnection(tSigned32 fromEndPoint, tSigned32 toEndPoint, tSigned32 penalty) = 0;
@@ -192,11 +212,13 @@ public:
     virtual bool shapeCanCollide(const iShape* shape) const = 0;
     virtual bool shapeCanPathfind(const iShape* shape) const = 0;
     virtual void saveCollisionPreprocessFor(iShape* shape, iOutputStream* os) const = 0;
+	//virtual void saveCollisionPreprocessFor(iShape* shape, iwriter* w) const = 0;
     virtual void savePathfindPreprocessFor(iShape* shape, iOutputStream* os) const = 0;
+	//virtual void savePathfindPreprocessFor(iShape* shape, iwriter* w) const = 0;
     virtual void loadCollisionPreprocessFor(iShape* shape, const char* dataBuffer, tUnsigned32 bufferSize) = 0;
     virtual void loadPathfindPreprocessFor(iShape* shape, const char* dataBuffer, tUnsigned32 bufferSize) = 0;
 
-    // TSNest: Modera method's
+    // TSNest: Modera method's 2033
     virtual int dummy3(int unknown1, int unknown2) = 0;
     virtual int dummy4(int unknown1, int unknown2) = 0;
 
@@ -207,24 +229,47 @@ public:
     virtual bool testLineCollision(iShape* shape, const iCollisionContext* context, const cPosition& start, const cPosition& end) const = 0;
     virtual bool testLineCollision_XY(iShape* shape, const iCollisionContext* context, const cPosition& start, tSigned32 x, tSigned32 y, tSigned32& cell) const = 0;
     virtual iCollisionInfo* firstCollision(iShape* shape, const iCollisionContext* context, const cPosition& start, tSigned32 x, tSigned32 y, tSigned32& cell) const = 0;
+
+	// TSNest LL
+	//virtual iCollisionInfo* firstCollisionEx() const = 0;
+
     virtual cPosition findClosestUnobstructedPosition(iShape* shape, const iCollisionContext* context, const cPosition& position, tSigned32 maximumDistance) const = 0;
+
+	// TSNest LL
+	//virtual cPosition findClosestUnobstructedPositionEx() const = 0;
+
     virtual void getAllAgentsOverlapped(iShape* shape, const iCollisionContext* context, const cPosition& position, iAgent** resultsBuffer, tSigned32& numberOverlapped) const = 0;
+
+	// TSNest deleted in LL
     virtual iPath* findShortestPath(iShape* shape, const iCollisionContext* context, const cPosition& start, const cPosition& goal) const = 0;
     virtual iPath* findShortestPath_WithQueryCallBack(iShape* shape, const iCollisionContext* context, const cPosition& start, const cPosition& goal, iQueryCallBack* queryCallBack) const = 0;
     virtual iPath* findPathAway(iShape* shape, const iCollisionContext* context, const cPosition& start, const cPosition& awayFrom, tSigned32 distanceAway) const = 0;
     virtual iPath* findPathAway_WithQueryCallBack(iShape* shape, const iCollisionContext* context, const cPosition& start, const cPosition& awayFrom, tSigned32 distanceAway, iQueryCallBack* queryCallBack) const = 0;
+
+	// TSNest LL
+	//virtual int findShortestPathLengthEx() const = 0;
+	//virtual iPath* findShortestPathEx() const = 0;
+	//virtual iPath* findPathAwayEx() const = 0;
+
     virtual iPath* generateCurvedPath(iShape* shape, iPath* basePath, const iCollisionContext* context, tSigned32 startVectorX, tSigned32 startVectorY, tSigned32 sectionLength, float turnRatio1, float turnRatio2) const = 0;
     virtual iPath* constructPath(const cPosition* positionsBuffer, const tSigned32* connectionIndicesBuffer, tSigned32 pathLength) const = 0;
     virtual iPath* constructPath_Reversed(const cPosition* positionsBuffer, const tSigned32* connectionIndicesBuffer, tSigned32 pathLength) const = 0;
     virtual void savePath(iPath* path, iOutputStream* os) const = 0;
     virtual iPath* loadPath(const char* dataBuffer, tUnsigned32 bufferSize) const = 0;
+
+	// TSNest LL
+	//virtual void renderLineOnGround() const = 0;
+
     virtual void renderLineOnGround(const cPosition& start, tSigned32 endX, tSigned32 endY, tSigned32 originX, tSigned32 originY, iRender3DLinesCallBack& callBack) const = 0;
     virtual iObstacleSet* newObstacleSet_WithAttributes(const char *const* attributes) const = 0;
     virtual cPosition positionInSectionInShape(tSigned32 sectionID, tSigned32 shapeOriginX, tSigned32 shapeOriginY, tSigned32 numberOfPoints, const tSigned32* coordinateData) const = 0;
     virtual iPath* generateCurvedPath_WithEndVector(iShape* shape, iPath* basePath, const iCollisionContext* context, tSigned32 startVectorX, tSigned32 startVectorY, tSigned32 endVectorX, tSigned32 endVectorY, tSigned32 sectionLength, float turnRatio1, float turnRatio2) const = 0;
     virtual iAgent* placeLargeStaticObstacle(tSigned32 numberOfPoints, const tSigned32* coordinateData, const cPosition& position) const = 0;
     virtual void addAnchorsAndShapes(const iAnchorsAndPinnedShapes* anchorsAndShapes, const char* idPrefix, tSigned32 numberOfTerrainLayers) = 0;
+
+	// TSNest deleted in LL
     virtual void autoGenerateConnections(tSigned32 sampleSpacing, tSigned32 localityConstraint, tSigned32 horizontalRange, tSigned32 verticalRange, tSigned32 dropRange, iConnectionTestCallBack& callBack) = 0;
+
     virtual tSigned32 getNumberOfBurntInObstacles() const = 0;
     virtual cPosition getBurntInObstacleRoot(tSigned32 index) const = 0;
     virtual tSigned32 getBurntInObstacleVertices(tSigned32 index) const = 0;
@@ -235,6 +280,12 @@ public:
     virtual void clearAllNamedObstacles() = 0;
     virtual bool positionIsBlockedBySurfaceTypeTraverseCosts(const iCollisionContext* context, const cPosition& position) const = 0;
     virtual iPath* buildCollideAndSlidePath(iShape* shape, const iCollisionContext* context, const cPosition& start, tSigned32 directionVectorX, tSigned32 directionVectorY, tSigned32 distance) const = 0;
+
+	// TSNest LL
+	//virtual void changes_allowed() const = 0;
+	//virtual void log_cb() const = 0;
+	//virtual void is_ai_physics_cb() const = 0;
+
     void operator delete(void* voidPointer)
     {
         if(voidPointer)
@@ -302,6 +353,11 @@ public:
     virtual iObstacleSet* getObstacleSet(tSigned32 index) const = 0;
     virtual void updateCollisionPreprocessFor(iShape* shape) const = 0;
     virtual void updatePathfindingPreprocessFor(iShape* shape) const = 0;
+
+	// TSNest LL
+	//virtual void updateCollisionPreprocessForUnsafe() const = 0;
+	//virtual void updatePathfindingPreprocessForUnsafe() const = 0;
+
     virtual void setSurfaceTypeTraverseCost(tSigned32 surfaceType, float cost) = 0;
     virtual void setSurfaceTypeTraverseCostDirection(tSigned32 surfaceType, tSigned32 directionVectorX, tSigned32 directionVectorY) = 0;
     virtual void setQueryBounds(const cHorizontalRange& bounds) = 0;

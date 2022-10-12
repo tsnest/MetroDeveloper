@@ -1,10 +1,12 @@
 #define _CRT_SECURE_NO_WARNINGS 1 // MSVS dno
 
+#include <io.h>
 #include <windows.h>
 #include <vector>
 #include "i_pathengine.h"
 #include "MinHook.h"
 #include "model.hpp"
+#include "uconsole.h"
 
 #define PSAPI_VERSION 1
 #include <psapi.h>
@@ -90,30 +92,10 @@ void BadQuitReset()
 	}
 }
 
-#ifndef _WIN64
-typedef void* (__stdcall* _getConsole)();
+typedef uconsole_server** (__stdcall* _getConsole)();
 _getConsole getConsole = nullptr;
 
-void uconsole_server_impl_execute_deffered(void* console, const char* fmt)
-{
-	if (console != nullptr)
-	{
-		typedef void(__cdecl* _execute_deffered) (void* console, const char* cmd, ...);
-		_execute_deffered execute_deffered = (_execute_deffered) * (DWORD*)(*(DWORD*)console + 32);
-		execute_deffered(console, fmt);
-	}
-}
-
-void uconsole_server_impl_execute(void* console, const char* fmt)
-{
-	if (console != nullptr)
-	{
-		typedef void(__cdecl* _execute) (void* console, const char* cmd, ...);
-		_execute execute = (_execute) * (DWORD*)(*(DWORD*)console + 28);
-		execute(console, fmt);
-	}
-}
-
+#ifndef _WIN64
 // nav_map part
 class MemoryStreamImpl : public iOutputStream
 {
@@ -307,10 +289,13 @@ void create_shapes_ll_and_redux(iPathEngine* pathengine, iShape** shape1, iShape
 	*shape3 = pathengine->newShape(8, shape3_data_ll);
 }
 
+//typedef iwriterObj* (__cdecl* _vfs__wopen_os)(iwriterObj* result, const char* _fname);
+//_vfs__wopen_os vfs__wopen_os = nullptr;
+
 void savemesh(iPathEngine *pathengine)
 {
 	iMesh *real_mesh;
-	
+
 	if (strcmp(navmapFormat, "4a") == 0)
 		real_mesh = load_4a(pathengine, navmapFilename);
 	else if(strcmp(navmapFormat, "raw") == 0)
@@ -336,7 +321,7 @@ void savemesh(iPathEngine *pathengine)
 	real_mesh->burnContextIntoMesh(ctx);
 
 	iShape* shape1, * shape2, * shape3;
-	if (!navmap_bin_mode /*isLL*/)
+	if (!navmap_bin_mode) // isLL
 	{
 		create_shapes_2033(pathengine, &shape1, &shape2, &shape3);
 	}
@@ -384,6 +369,24 @@ void savemesh(iPathEngine *pathengine)
 	real_mesh->savePathfindPreprocessFor(shape1, &ms_pfp[0]);
 	real_mesh->savePathfindPreprocessFor(shape2, &ms_pfp[1]);
 	real_mesh->savePathfindPreprocessFor(shape3, &ms_pfp[2]);
+
+	// 8B 44 24 08 FF 05
+	/*vfs__wopen_os = (_vfs__wopen_os)FindPattern(
+		(DWORD)mi.lpBaseOfDll,
+		mi.SizeOfImage,
+		(BYTE*)"\x8B\x44\x24\x08\xFF\x05",
+		"xxxxxx");
+
+	iwriterObj wo;
+	vfs__wopen_os(&wo, "nav_map.bin");
+
+	printf("_object = %08X\n", wo._object);
+	printf("__vftable = %08X\n", wo._object->__vftable);
+	printf("iwriter_dtor_0 = %08X\n", wo._object->__vftable->iwriter_dtor_0);*/
+
+	//real_mesh->saveGround(wo._object);
+	//real_mesh->saveCollisionPreprocessFor(shape1, wo._object);
+	//real_mesh->savePathfindPreprocessFor(shape1, wo._object);
 
 	// compile together ;)
 	MemoryStreamImpl result;
@@ -450,7 +453,8 @@ DWORD WINAPI NavMapThread(LPVOID)
 
 	if (navmap_exit)
 	{
-		uconsole_server_impl_execute_deffered(getConsole(), "quit");
+		uconsole_server** console = (uconsole_server**)getConsole();
+		(*console)->execute_deferred(console, "quit");
 	}
 
 	return 0;
@@ -512,8 +516,6 @@ bool getBool(const char* section_name, const char* bool_name, bool default_bool)
 	return (strcmp(str, "true") == 0) || (strcmp(str, "yes") == 0) || (strcmp(str, "on") == 0) || (strcmp(str, "1") == 0);
 }
 
-typedef void(__thiscall* _uconsole_server_impl_show)(void* console);
-_uconsole_server_impl_show uconsole_server_impl_show = nullptr;
 void* clevel_r_on_key_press_Orig = nullptr;
 
 #ifndef _WIN64
@@ -523,7 +525,8 @@ void __fastcall clevel_r_on_key_press_Hook2033(void* _this, void* _unused, int a
 
 	if (key == 41)
 	{
-		uconsole_server_impl_show(getConsole());
+		uconsole_server** console = getConsole();
+		(*console)->show(console);
 	}
 
 	typedef void(__thiscall* _clevel_r_on_key_press_2033)(void* _this, int action, int key, int state);
@@ -532,7 +535,6 @@ void __fastcall clevel_r_on_key_press_Hook2033(void* _this, void* _unused, int a
 
 void __fastcall clevel_r_on_key_press_Hook(void* _this, void* _unused, int action, int key, int state, int resending)
 #else
-void** g_console = nullptr;
 void __fastcall clevel_r_on_key_press_Hook(void* _this, int action, int key, int state, int resending)
 #endif
 {
@@ -540,15 +542,54 @@ void __fastcall clevel_r_on_key_press_Hook(void* _this, int action, int key, int
 
 	if (key == 41)
 	{
-#ifndef _WIN64
-		uconsole_server_impl_show(getConsole());
-#else
-		uconsole_server_impl_show(*g_console);
-#endif
+		uconsole_server** console = getConsole();
+		(*console)->show(console);
 	}
 
 	typedef void(__thiscall* _clevel_r_on_key_press)(void* _this, int action, int key, int state, int resending);
 	((_clevel_r_on_key_press)clevel_r_on_key_press_Orig)(_this, action, key, state, resending);
+}
+
+typedef DWORD (__stdcall* _cmd_register_commands)();
+_cmd_register_commands cmd_register_commands_Orig = nullptr;
+
+void* cmd_mask_Address = nullptr;
+void* ps_actor_flags_Address = nullptr;
+
+cmd_mask_struct g_god;
+cmd_mask_struct g_global_god;
+cmd_mask_struct g_kill_everyone;
+cmd_mask_struct g_notarget;
+cmd_mask_struct g_unlimitedammo;
+cmd_mask_struct g_unlimitedfilters;
+cmd_mask_struct g_autopickup;
+
+DWORD cmd_register_commands_Hook()
+{
+	uconsole cu = uconsole::uconsole(getConsole(), cmd_mask_Address);
+
+	cu.cmd_mask(&g_god, "g_god", ps_actor_flags_Address, 1, false);
+	cu.command_add(&g_god.base);
+
+	cu.cmd_mask(&g_global_god, "g_global_god", ps_actor_flags_Address, 2, false);
+	cu.command_add(&g_global_god.base);
+
+	cu.cmd_mask(&g_kill_everyone, "g_kill_everyone", ps_actor_flags_Address, 16, false);
+	cu.command_add(&g_kill_everyone.base);
+
+	cu.cmd_mask(&g_notarget, "g_notarget", ps_actor_flags_Address, 4, false);
+	cu.command_add(&g_notarget.base);
+
+	cu.cmd_mask(&g_unlimitedammo, "g_unlimitedammo", ps_actor_flags_Address, 8, false);
+	cu.command_add(&g_unlimitedammo.base);
+
+	cu.cmd_mask(&g_unlimitedfilters, "g_unlimitedfilters", ps_actor_flags_Address, 128, false);
+	cu.command_add(&g_unlimitedfilters.base);
+
+	cu.cmd_mask(&g_autopickup, "g_autopickup", ps_actor_flags_Address, 32, false);
+	cu.command_add(&g_autopickup.base);
+
+	return cmd_register_commands_Orig();;
 }
 
 #ifndef _WIN64
@@ -699,10 +740,36 @@ void __fastcall vfs_rbuffered_package_Hook(void* package, const char* fn, fastde
 	vfs_rbuffered_package_Orig(package, fn, cb, force_raw);
 }
 
-// TEST
 void* __fastcall rblock_init_Hook(const char* fn, unsigned int* f_offset, unsigned int* f_size, unsigned int not_packaged)
 {
 	printf("%s\n", fn);
+
+	if (GetFileAttributes(fn) != 0xFFFFFFFF)
+	{
+		//return rblock_init_Orig(fn, f_offset, f_size, 1);
+		
+		// 0F 84 ? ? ? ? 48 8B D1 48 8D 4C 24
+		// \x0F\x84\x00\x00\x00\x00\x48\x8B\xD1\x48\x8D\x4C\x24 xx????xxxxxxx
+		void* je = (void*)FindPattern(
+			(DWORD64)mi.lpBaseOfDll,
+			mi.SizeOfImage,
+			(BYTE*)"\x0F\x84\x00\x00\x00\x00\x48\x8B\xD1\x48\x8D\x4C\x24",
+			"xx????xxxxxxx");
+		BYTE nop[] = { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 };
+		ASMWrite(je, nop, sizeof(nop));
+
+		//BYTE nop1[] = { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 };
+		// 0f 84 ? ? ? ? 48 89 bc 24 ? ? ? ? e8
+		//ASMWrite((void*)je, nop1, sizeof(nop1));
+
+		void* ttt = rblock_init_Orig(fn, f_offset, f_size, 1);
+		if (ttt == 0)
+		{
+			printf("test\n");
+		}
+		return ttt;
+	}
+
 	return rblock_init_Orig(fn, f_offset, f_size, not_packaged);
 }
 #endif
@@ -711,8 +778,8 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 {
 	if(reason == DLL_PROCESS_ATTACH)
 	{
-		//AllocConsole();
-		//freopen("CONOUT$", "w", stdout);
+		AllocConsole();
+		freopen("CONOUT$", "w", stdout);
 
 		if (getBool("other", "beep", true))
 		{
@@ -994,7 +1061,13 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 
 		bool unlock_dev_console = getBool("other", "unlock_dev_console", false);
 
-		if (unlock_dev_console || isNavMapEnabled)
+#ifdef _WIN64
+		bool restore_deleted_commands = false;
+#else
+		bool restore_deleted_commands = getBool("other", "restore_deleted_commands", false) && isLL;
+#endif
+
+		if (unlock_dev_console || restore_deleted_commands || isNavMapEnabled)
 		{
 #ifndef _WIN64
 			if (!isLL)
@@ -1016,41 +1089,18 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 					"xxxxx?x????xxx?x????xxx????x????x????xx");
 			}
 #else
-			// читаем адрес инструкции mov ecx, [g_console]
-			// 48 8B 0D ? ? ? ? E8 ? ? ? ? E8 ? ? ? ? 48 8B C8 E8 ? ? ? ? 48 8B 0D
-			DWORD64 mov = FindPattern(
+			// 48 83 ec ? 48 8b 05 ? ? ? ? 48 85 c0 75 ? e8 ? ? ? ? 48 8b 05
+			getConsole = (_getConsole)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
-				(BYTE*)"\x48\x8B\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x8B\xC8\xE8\x00\x00\x00\x00\x48\x8B\x0D",
-				"xxx????x????x????xxxx????xxx");
-
-			// вычисняем адрес g_console
-			g_console = (void**)(mov + 7 + *(DWORD*)(mov + 3));
+				(BYTE*)"\x48\x83\xec\x00\x48\x8b\x05\x00\x00\x00\x00\x48\x85\xc0\x75\x00\xe8\x00\x00\x00\x00\x48\x8b\x05",
+				"xxx?xxx????xxxx?x????xxx");
 #endif
 		}
 
 		if(unlock_dev_console)
 		{
 #ifndef _WIN64
-			if (!isLL)
-			{
-				// 56 8B F1 80 7E 48 00
-				uconsole_server_impl_show = (_uconsole_server_impl_show)FindPattern(
-					(DWORD)mi.lpBaseOfDll,
-					mi.SizeOfImage,
-					(BYTE*)"\x56\x8B\xF1\x80\x7E\x48\x00",
-					"xxxxxxx");
-			}
-			else
-			{
-				// 55 8B EC 83 E4 F8 83 EC 0C 53 56 8B F1 33 DB
-				uconsole_server_impl_show = (_uconsole_server_impl_show)FindPattern(
-					(DWORD)mi.lpBaseOfDll,
-					mi.SizeOfImage,
-					(BYTE*)"\x55\x8B\xEC\x83\xE4\xF8\x83\xEC\x0C\x53\x56\x8B\xF1\x33\xDB",
-					"xxxxxxxxxxxxxxx");
-			}
-
 			if (minhook) {
 				// 51 ? 8B ? 8B 0D ? ? ? ? 85
 				LPVOID clevel_r_on_key_press_Address = (LPVOID)FindPattern(
@@ -1072,13 +1122,6 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				}
 			}
 #else
-			// 40 57 48 83 EC ? 80 79 ? ? 48 8B F9 0F 85 ? ? ? ? C6 41
-			uconsole_server_impl_show = (_uconsole_server_impl_show)FindPattern(
-				(DWORD64)mi.lpBaseOfDll,
-				mi.SizeOfImage,
-				(BYTE*)"\x40\x57\x48\x83\xEC\x00\x80\x79\x00\x00\x48\x8B\xF9\x0F\x85\x00\x00\x00\x00\xC6\x41",
-				"xxxxx?xx??xxxxx????xx");
-
 			if (minhook) {
 				// 40 53 55 56 57 48 83 EC ? 48 8B F1
 				LPVOID clevel_r_on_key_press_Address = (LPVOID)FindPattern(
@@ -1098,6 +1141,82 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 					MessageBox(NULL, "MH_CreateHook() != MH_OK", "clevel_r_on_key_press Hook", MB_OK | MB_ICONERROR);
 				}
 			}
+#endif
+		}
+
+		if (restore_deleted_commands)
+		{
+#ifndef _WIN64
+			// 8A 54 24 10 8B C1
+			cmd_mask_Address = (LPVOID)FindPattern(
+				(DWORD)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x8A\x54\x24\x10\x8B\xC1",
+				"xxxxxx");
+
+			// c7 05 ? ? ? ? ? ? ? ? 89 1d ? ? ? ? 89 1d ? ? ? ? 89 1d ? ? ? ? e8 ? ? ? ? 83 c4 ? e8
+			ps_actor_flags_Address = (DWORD*) *(DWORD*)(FindPattern(
+				(DWORD)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\xc7\x05\x00\x00\x00\x00\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x83\xc4\x00\xe8",
+				"xx????????xx????xx????xx????x????xx?x") + 6);
+
+			if (minhook) {
+				// B8 ? ? ? ? 53 BB
+				LPVOID cmd_register_commands_Address = (LPVOID)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\xB8\x00\x00\x00\x00\x53\xBB",
+					"x????xx");
+
+				MH_STATUS status = MH_CreateHook(cmd_register_commands_Address, (LPVOID)&cmd_register_commands_Hook,
+					reinterpret_cast<LPVOID*>(&cmd_register_commands_Orig));
+
+				if (status == MH_OK) {
+					if (MH_EnableHook(cmd_register_commands_Address) != MH_OK) {
+						MessageBox(NULL, "MH_EnableHook() != MH_OK", "cmd_register_commands Hook", MB_OK | MB_ICONERROR);
+					}
+				}
+				else {
+					MessageBox(NULL, "MH_CreateHook() != MH_OK", "cmd_register_commands Hook", MB_OK | MB_ICONERROR);
+				}
+			}
+#else
+			// TODO: Переделать под redux
+			// 8A 54 24 10 8B C1
+			cmd_mask_Address = (LPVOID)FindPattern(
+				(DWORD64)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x8A\x54\x24\x10\x8B\xC1",
+				"xxxxxx");
+
+			// c7 05 ? ? ? ? ? ? ? ? 89 1d ? ? ? ? 89 1d ? ? ? ? 89 1d ? ? ? ? e8 ? ? ? ? 83 c4 ? e8
+			ps_actor_flags_Address = (DWORD*) *(DWORD*)(FindPattern(
+				(DWORD64)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\xc7\x05\x00\x00\x00\x00\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x83\xc4\x00\xe8",
+				"xx????????xx????xx????xx????x????xx?x") + 6);
+
+			if (minhook) {
+				// B8 ? ? ? ? 53 BB
+				LPVOID cmd_register_commands_Address = (LPVOID)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\xB8\x00\x00\x00\x00\x53\xBB",
+					"x????xx");
+
+				MH_STATUS status = MH_CreateHook(cmd_register_commands_Address, (LPVOID)& cmd_register_commands_Hook,
+					reinterpret_cast<LPVOID*>(&cmd_register_commands_Orig));
+
+				if (status == MH_OK) {
+					if (MH_EnableHook(cmd_register_commands_Address) != MH_OK) {
+						MessageBox(NULL, "MH_EnableHook() != MH_OK", "cmd_register_commands Hook", MB_OK | MB_ICONERROR);
+					}
+				}
+				else {
+					MessageBox(NULL, "MH_CreateHook() != MH_OK", "cmd_register_commands Hook", MB_OK | MB_ICONERROR);
+				}
+		}
 #endif
 		}
 
