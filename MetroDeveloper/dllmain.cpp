@@ -21,6 +21,26 @@ bool isLogEnabled;
 bool isNavMapEnabled;
 bool isLL;
 
+bool g_unlock_3rd_person_camera;
+typedef void(__thiscall* _base_npc_cameras_cam_set)(void* _this, int camera_style, float speed, int preserve_attach);
+typedef void(__cdecl* _set_camera_2033)(...); // this function has weird calling convention; 'this' passed in EDI, and two parameters passed through stack
+_base_npc_cameras_cam_set base_npc_cameras_cam_set = nullptr;
+_set_camera_2033 set_camera_2033 = nullptr;
+
+
+enum enpc_cameras // 2033, Last Light, Redux (changed a bit in Arktika.1)
+{
+	enc_first_eye = 0,
+	enc_ladder    = 1,
+	enc_look_at   = 2,
+	enc_free_look = 3,
+	enc_station   = 4,
+	enc_locked    = 5,
+	enc_max_cam   = 6
+};
+
+bool g_unlock_dev_console;
+
 #ifndef _WIN64
 string256 navmapFormat;
 string256 navmapFilename;
@@ -90,6 +110,12 @@ void BadQuitReset()
 		RegDeleteValue(hKey, "BadQuit");
 		RegCloseKey(hKey);
 	}
+}
+
+bool FileExists(const char *fn)
+{
+	DWORD attrs = GetFileAttributes(fn);
+	return (attrs != INVALID_FILE_ATTRIBUTES) && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 typedef uconsole_server** (__stdcall* _getConsole)();
@@ -523,10 +549,57 @@ void __fastcall clevel_r_on_key_press_Hook2033(void* _this, void* _unused, int a
 {
 	//printf("action = %d, key = %d, state = %d\n", action, key, state);
 
-	if (key == 41)
+	if (g_unlock_dev_console)
 	{
-		uconsole_server** console = getConsole();
-		(*console)->show(console);
+		if (key == 41)
+		{
+			uconsole_server** console = getConsole();
+			(*console)->show(console);
+		}
+	}
+	
+	if (g_unlock_3rd_person_camera && key <= 61 && key >= 59)
+	{
+		// _this == g_level + 0x4 (+0x4 due to multiple inheritance)
+
+		// which one is better to use here ??
+		void* control_entity = *((void**)((char*)_this + 0x10));
+		void* view_entity = *((void**)((char*)_this + 0x14));
+
+		void *base_npc_cameras = *((void**)((char*)view_entity + 0x348));
+
+		if (key == 59) // F1
+		{
+			__asm
+			{
+				push 3F800000h              // speed = 1.f
+				push enc_first_eye          // camera_style = enc_first_eye
+				mov edi, [base_npc_cameras] // 'this' pointer passed in EDI
+				call [set_camera_2033]
+			}
+		}
+
+		if (key == 60) // F2
+		{
+			__asm
+			{
+				push 3F800000h              // speed = 1.f
+				push enc_look_at            // camera_style = enc_look_at
+				mov edi, [base_npc_cameras] // 'this' pointer passed in EDI
+				call [set_camera_2033]
+			}
+		}
+
+		if (key == 61) // F3
+		{
+			__asm
+			{
+				push 3F800000h              // speed = 1.f
+				push enc_free_look          // camera_style = enc_free_look
+				mov edi, [base_npc_cameras] // 'this' pointer passed in EDI
+				call [set_camera_2033]
+			}
+		}
 	}
 
 	typedef void(__thiscall* _clevel_r_on_key_press_2033)(void* _this, int action, int key, int state);
@@ -540,11 +613,56 @@ void __fastcall clevel_r_on_key_press_Hook(void* _this, int action, int key, int
 {
 	//printf("action = %d, key = %d, state = %d, resending = %d\n", action, key, state, resending);
 
-	if (key == 41)
+	if (g_unlock_dev_console)
 	{
-		uconsole_server** console = getConsole();
-		(*console)->show(console);
+		if (key == 41)
+		{
+			uconsole_server** console = getConsole();
+			(*console)->show(console);
+		}
 	}
+
+#ifdef _WIN64
+	// Redux
+	if (g_unlock_3rd_person_camera && key <= 61 && key >= 59)
+	{
+		// _this == g_level + 0x8 (+0x8 due to multiple inheritance)
+
+		// which one is better to use here ??
+		void* startup_entity = *((void**)((char*)_this + 0x28));
+		void* control_entity = *((void**)((char*)_this + 0x30));
+		void* view_entity = *((void**)((char*)_this + 0x38));
+
+		void *base_npc_cameras = *((void**)((char*)view_entity + 0x640));
+
+		if (key == 59) // F1
+			base_npc_cameras_cam_set(base_npc_cameras, enc_first_eye, 1.f, 1);
+		if (key == 60) // F2
+			base_npc_cameras_cam_set(base_npc_cameras, enc_look_at, 1.f, 1);
+		if (key == 61) // F3
+			base_npc_cameras_cam_set(base_npc_cameras, enc_free_look, 1.f, 1);
+	}
+#else
+	// Last Light
+	if (g_unlock_3rd_person_camera && key <= 61 && key >= 59)
+	{
+		// _this == g_level + 0x4 (+0x4 due to multiple inheritance)
+
+		// which one is better to use here ??
+		void* startup_entity = *((void**)((char*)_this + 0x18));
+		void* control_entity = *((void**)((char*)_this + 0x1C));
+		void* view_entity = *((void**)((char*)_this + 0x20));
+
+		void *base_npc_cameras = *((void**)((char*)view_entity + 0x3A4));
+
+		if (key == 59) // F1
+			base_npc_cameras_cam_set(base_npc_cameras, enc_first_eye, 1.f, 1);
+		if (key == 60) // F2
+			base_npc_cameras_cam_set(base_npc_cameras, enc_look_at, 1.f, 1);
+		if (key == 61) // F3
+			base_npc_cameras_cam_set(base_npc_cameras, enc_free_look, 1.f, 1);
+	}
+#endif
 
 	typedef void(__thiscall* _clevel_r_on_key_press)(void* _this, int action, int key, int state, int resending);
 	((_clevel_r_on_key_press)clevel_r_on_key_press_Orig)(_this, action, key, state, resending);
@@ -690,11 +808,13 @@ typedef void* (__fastcall* _vfs_ropen_package)(void* result, void* package, cons
 typedef void* (__fastcall* _vfs_ropen_os)(void* result, const char* fn);
 typedef void (__fastcall* _vfs_rbuffered_package)(void* package, const char* fn, void* cb, const int force_raw);
 typedef void* (__fastcall* _rblock_init)(const char* fn, unsigned int* f_offset, unsigned int* f_size, unsigned int not_packaged);
+typedef bool (__fastcall* _vfs_package_registry_level_downloaded)(void *_this, const char *map_name);
 
 _vfs_ropen_package vfs_ropen_package_Orig = nullptr;
 _vfs_ropen_os vfs_ropen_os = nullptr;
 _vfs_rbuffered_package vfs_rbuffered_package_Orig = nullptr;
 _rblock_init rblock_init_Orig = nullptr;
+_vfs_package_registry_level_downloaded vfs_package_registry_level_downloaded_Orig = nullptr;
 
 void* __fastcall vfs_ropen_package_Hook(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size)
 {
@@ -771,6 +891,23 @@ void* __fastcall rblock_init_Hook(const char* fn, unsigned int* f_offset, unsign
 	}
 
 	return rblock_init_Orig(fn, f_offset, f_size, not_packaged);
+}
+
+bool __fastcall vfs_package_registry_level_downloaded_Hook(void *_this, const char *map_name)
+{
+	bool ret = vfs_package_registry_level_downloaded_Orig(_this, map_name);
+	
+	if(!ret)
+	{
+		char map_path[256];
+		strcpy(map_path, "content\\maps\\");
+		strcat(map_path, map_name);
+		strcat(map_path, "\\level");
+		if(FileExists(map_path))
+			ret = true;
+	}
+	
+	return ret;
 }
 #endif
 
@@ -921,6 +1058,13 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				mi.SizeOfImage,
 				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x41\x56\x48\x81\xEC\x00\x00\x00\x00\x33\xED",
 				"xxxx?xxxx?xxxx?xxxxx????xx");
+				
+			// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 54 41 56 41 57 48 83 EC 20 44 0F B7 B9 ? ? ? ? 33 DB 4C 8B F2 4C 8B E1 45 85 FF 74 6E
+			LPVOID vfs_package_registry_level_downloaded_Address = (LPVOID)FindPattern(
+				(DWORD64)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x54\x41\x56\x41\x57\x48\x83\xEC\x20\x44\x0F\xB7\xB9\x00\x00\x00\x00\x33\xDB\x4C\x8B\xF2\x4C\x8B\xE1\x45\x85\xFF\x74\x6E",
+				"xxxx?xxxx?xxxx?xxxx?xxxxxxxxxxxxxx????xxxxxxxxxxxxx");
 
 			if (MH_CreateHook(vfs_ropen_package_Address, &vfs_ropen_package_Hook, reinterpret_cast<LPVOID*>(&vfs_ropen_package_Orig)) == MH_OK) {
 				if (MH_EnableHook(vfs_ropen_package_Address) != MH_OK) {
@@ -945,6 +1089,14 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			} else {
 				MessageBox(NULL, "MH_CreateHook() != MH_OK", "rblock_init Hook", MB_OK | MB_ICONERROR);
 			}*/
+			
+			if (MH_CreateHook(vfs_package_registry_level_downloaded_Address, &vfs_package_registry_level_downloaded_Hook, reinterpret_cast<LPVOID*>(&vfs_package_registry_level_downloaded_Orig)) == MH_OK) {
+				if (MH_EnableHook(vfs_package_registry_level_downloaded_Address) != MH_OK) {
+					MessageBox(NULL, "MH_EnableHook() != MH_OK", "vfs_rbuffered_package Hook", MB_OK | MB_ICONERROR);
+				}
+			} else {
+				MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_rbuffered_package Hook", MB_OK | MB_ICONERROR);
+			}
 #endif
 		}
 
@@ -1059,7 +1211,36 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 #endif
 		}
 
-		bool unlock_dev_console = getBool("other", "unlock_dev_console", false);
+		g_unlock_3rd_person_camera = getBool("other", "unlock_3rd_person_camera", false);
+		if (g_unlock_3rd_person_camera)
+		{
+#ifdef _WIN64
+			base_npc_cameras_cam_set = (_base_npc_cameras_cam_set)FindPattern(
+				(DWORD64)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x30\x48\x63\x41\x68\x48\x8B\xF1\x0F\x29\x74\x24\x00\x4C\x8B\x74\xC1\x00\x89\x51\x68\x48\x63\xC2\x0F\x28\xF2\x48\x8B\x5C\xC1\x00\x49\x8B\x06\x49\x8B\xCE\x41\x8B\xF9\xFF\x50\x28\x48\x8B\x03\x44\x8B\xC7\x49\x8B\xD6\x48\x8B\xCB\xFF\x50\x20\x8B\x05\x00\x00\x00\x00\xA8\x01\x75\x20",
+				"xxxx?xxxx?xxxx?xxxxxxxxxxxxxxxxx?xxxx?xxxxxxxxxxxxx?xxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xxxx");
+#else
+			if (isLL)
+			{
+				base_npc_cameras_cam_set = (_base_npc_cameras_cam_set)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x53\x56\x8B\xF1\x8B\x46\x4C\x57\x8B\x7C\x86\x34\x8B\x44\x24\x10\x89\x46\x4C\x8B\x17\x8B\x5C\x86\x34\x8B\x42\x14\x8B\xCF",
+					"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+			}
+			else
+			{
+				set_camera_2033 = (_set_camera_2033)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\xB8\x00\x00\x00\x00\x84\x05\x00\x00\x00\x00\x56\x75\x1D\x09\x05\x00\x00\x00\x00\x68\x00\x00\x00\x00\xC7\x05\x00\x00\x00\x00\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x83\xC4\x04\x8B\x47\x6C",
+					"x????xx????xxxxx????x????xx????????x????xxxxxx");
+			}
+#endif
+		}
+
+		g_unlock_dev_console = getBool("other", "unlock_dev_console", false);
 
 #ifdef _WIN64
 		bool restore_deleted_commands = false;
@@ -1067,7 +1248,7 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 		bool restore_deleted_commands = getBool("other", "restore_deleted_commands", false) && isLL;
 #endif
 
-		if (unlock_dev_console || restore_deleted_commands || isNavMapEnabled)
+		if (g_unlock_dev_console || restore_deleted_commands || isNavMapEnabled)
 		{
 #ifndef _WIN64
 			if (!isLL)
@@ -1098,7 +1279,7 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 #endif
 		}
 
-		if(unlock_dev_console)
+		if(g_unlock_dev_console || g_unlock_3rd_person_camera)
 		{
 #ifndef _WIN64
 			if (minhook) {
@@ -1216,7 +1397,7 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				else {
 					MessageBox(NULL, "MH_CreateHook() != MH_OK", "cmd_register_commands Hook", MB_OK | MB_ICONERROR);
 				}
-		}
+			}
 #endif
 		}
 
