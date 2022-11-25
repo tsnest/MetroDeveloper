@@ -1,16 +1,15 @@
 #pragma once
 
-#pragma pack(push, 1)
 struct uconsole_command {
 	void* __vftable;
 
 	const char* _name;
-	bool unk1;
-	bool unk2;
-	bool unk3;
-	bool unk4;
+	char _enabled : 1;
+	char _lower_case_args : 1;
+	char _empty_args_handled : 1;
+	char _save : 1;
+	char _option : 1;
 };
-#pragma pack(pop)
 
 typedef void(__thiscall* _command_add) (void* _console, uconsole_command* C);
 typedef void(__thiscall* _show)(void* _console);
@@ -42,23 +41,37 @@ struct uconsole_server {
 };
 #pragma pack(pop)
 
-#pragma pack(push, 1)
-struct cmd_mask_struct {
-	uconsole_command base;
-
-	void* value;
+struct cmd_mask_struct : public uconsole_command {
+	unsigned int *value; // flags
 	unsigned int mask;
 	unsigned int mask_on;
 	unsigned int mask_off;
+	
 #ifdef _WIN64
 	// arktika.1
+	// Modera: was ist das? I dont see anything like that in arktika.1
 	void* unk1;
 	void* unk2;
 	void* unk3;
 	void* unk4;
 #endif
+
+	void construct(void *vtable_ptr, const char *name, unsigned *flags_ptr, unsigned flags_mask)
+	{
+		__vftable           = vtable_ptr;
+		_name               = name;
+		_enabled            = 1;
+		_lower_case_args    = 1;
+		_empty_args_handled = 0;
+		_save               = 1;
+		_option             = 0;
+		
+		value    = flags_ptr;
+		mask     = flags_mask;
+		mask_on  = flags_mask;
+		mask_off = flags_mask;
+	}
 };
-#pragma pack(pop)
 
 class uconsole
 {
