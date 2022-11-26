@@ -668,11 +668,12 @@ void __fastcall clevel_r_on_key_press_Hook(void* _this, int action, int key, int
 	((_clevel_r_on_key_press)clevel_r_on_key_press_Orig)(_this, action, key, state, resending);
 }
 
-typedef DWORD (__stdcall* _cmd_register_commands)();
+typedef void (__stdcall* _cmd_register_commands)();
 _cmd_register_commands cmd_register_commands_Orig = nullptr;
 
 void* cmd_mask_Address = nullptr;
-void* ps_actor_flags_Address = nullptr;
+unsigned int* ps_actor_flags_Address = nullptr;
+void* cmd_mask_vftable_Address = nullptr;
 
 cmd_mask_struct g_god;
 cmd_mask_struct g_global_god;
@@ -682,33 +683,85 @@ cmd_mask_struct g_unlimitedammo;
 cmd_mask_struct g_unlimitedfilters;
 cmd_mask_struct g_autopickup;
 
-DWORD cmd_register_commands_Hook()
+#ifndef _WIN64
+void cmd_register_commands_Hook()
 {
 	uconsole cu = uconsole::uconsole(getConsole(), cmd_mask_Address);
 
 	cu.cmd_mask(&g_god, "g_god", ps_actor_flags_Address, 1, false);
-	cu.command_add(&g_god.base);
+	cu.command_add(&g_god);
 
 	cu.cmd_mask(&g_global_god, "g_global_god", ps_actor_flags_Address, 2, false);
-	cu.command_add(&g_global_god.base);
+	cu.command_add(&g_global_god);
 
 	cu.cmd_mask(&g_kill_everyone, "g_kill_everyone", ps_actor_flags_Address, 16, false);
-	cu.command_add(&g_kill_everyone.base);
+	cu.command_add(&g_kill_everyone);
 
 	cu.cmd_mask(&g_notarget, "g_notarget", ps_actor_flags_Address, 4, false);
-	cu.command_add(&g_notarget.base);
+	cu.command_add(&g_notarget);
 
 	cu.cmd_mask(&g_unlimitedammo, "g_unlimitedammo", ps_actor_flags_Address, 8, false);
-	cu.command_add(&g_unlimitedammo.base);
+	cu.command_add(&g_unlimitedammo);
 
 	cu.cmd_mask(&g_unlimitedfilters, "g_unlimitedfilters", ps_actor_flags_Address, 128, false);
-	cu.command_add(&g_unlimitedfilters.base);
+	cu.command_add(&g_unlimitedfilters);
 
 	cu.cmd_mask(&g_autopickup, "g_autopickup", ps_actor_flags_Address, 32, false);
-	cu.command_add(&g_autopickup.base);
+	cu.command_add(&g_autopickup);
 
-	return cmd_register_commands_Orig();;
+	cmd_register_commands_Orig();
 }
+#else
+void cmd_register_commands_Hook()
+{
+	// 0. call original function first to ensure that g_toggle_aim is initialized and we can find it
+	cmd_register_commands_Orig();
+	
+	// 1. find constant string
+	const char *str_g_toggle_aim = (const char *)FindPattern(
+		(DWORD64)mi.lpBaseOfDll,
+		mi.SizeOfImage,
+		(BYTE*)"g_toggle_aim\0",
+		"xxxxxxxxxxxxx");
+		
+	// 2. find reference to that string
+	const char **xref = (const char **)FindPattern(
+		(DWORD64)mi.lpBaseOfDll,
+		mi.SizeOfImage,
+		(BYTE*)&str_g_toggle_aim,
+		"xxxxxxxx");
+	
+	// 3. find pointer to existing command object based on xref
+	cmd_mask_struct * pCmd = (cmd_mask_struct*)(((char*)xref) - offsetof(cmd_mask_struct, _name));
+	
+	ps_actor_flags_Address = pCmd->value;
+	cmd_mask_vftable_Address = pCmd->__vftable;
+	
+	// 4. register new commands
+	uconsole cu = uconsole::uconsole(getConsole(), NULL);
+	
+	g_god.construct(cmd_mask_vftable_Address, "g_god", ps_actor_flags_Address, 1);
+	cu.command_add(&g_god);
+	
+	g_global_god.construct(cmd_mask_vftable_Address, "g_global_god", ps_actor_flags_Address, 2);
+	cu.command_add(&g_global_god);
+
+	g_kill_everyone.construct(cmd_mask_vftable_Address, "g_kill_everyone", ps_actor_flags_Address, 16);
+	cu.command_add(&g_kill_everyone);
+
+	g_notarget.construct(cmd_mask_vftable_Address, "g_notarget", ps_actor_flags_Address, 4);
+	cu.command_add(&g_notarget);
+
+	g_unlimitedammo.construct(cmd_mask_vftable_Address, "g_unlimitedammo", ps_actor_flags_Address, 8);
+	cu.command_add(&g_unlimitedammo);
+
+	g_unlimitedfilters.construct(cmd_mask_vftable_Address, "g_unlimitedfilters", ps_actor_flags_Address, 128);
+	cu.command_add(&g_unlimitedfilters);
+
+	g_autopickup.construct(cmd_mask_vftable_Address, "g_autopickup", ps_actor_flags_Address, 32);
+	cu.command_add(&g_autopickup);
+}
+#endif
 
 #ifndef _WIN64
 LPVOID vfs_ropen_Orig = nullptr;
@@ -1243,7 +1296,7 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 		g_unlock_dev_console = getBool("other", "unlock_dev_console", false);
 
 #ifdef _WIN64
-		bool restore_deleted_commands = false;
+		bool restore_deleted_commands = getBool("other", "restore_deleted_commands", false);
 #else
 		bool restore_deleted_commands = getBool("other", "restore_deleted_commands", false) && isLL;
 #endif
@@ -1336,7 +1389,7 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				"xxxxxx");
 
 			// c7 05 ? ? ? ? ? ? ? ? 89 1d ? ? ? ? 89 1d ? ? ? ? 89 1d ? ? ? ? e8 ? ? ? ? 83 c4 ? e8
-			ps_actor_flags_Address = (DWORD*) *(DWORD*)(FindPattern(
+			ps_actor_flags_Address = (unsigned int*) *(DWORD*)(FindPattern(
 				(DWORD)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\xc7\x05\x00\x00\x00\x00\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x83\xc4\x00\xe8",
@@ -1363,30 +1416,15 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				}
 			}
 #else
-			// TODO: Переделать под redux
-			// 8A 54 24 10 8B C1
-			cmd_mask_Address = (LPVOID)FindPattern(
-				(DWORD64)mi.lpBaseOfDll,
-				mi.SizeOfImage,
-				(BYTE*)"\x8A\x54\x24\x10\x8B\xC1",
-				"xxxxxx");
-
-			// c7 05 ? ? ? ? ? ? ? ? 89 1d ? ? ? ? 89 1d ? ? ? ? 89 1d ? ? ? ? e8 ? ? ? ? 83 c4 ? e8
-			ps_actor_flags_Address = (DWORD*) *(DWORD*)(FindPattern(
-				(DWORD64)mi.lpBaseOfDll,
-				mi.SizeOfImage,
-				(BYTE*)"\xc7\x05\x00\x00\x00\x00\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x83\xc4\x00\xe8",
-				"xx????????xx????xx????xx????x????xx?x") + 6);
-
 			if (minhook) {
-				// B8 ? ? ? ? 53 BB
+				// 48 89 5C 24 ? 57 48 83 EC 20 8B 05 ? ? ? ? 48 8D 1D ? ? ? ? 48 8D 3D ? ? ? ? A8 01 75 60
 				LPVOID cmd_register_commands_Address = (LPVOID)FindPattern(
 					(DWORD64)mi.lpBaseOfDll,
 					mi.SizeOfImage,
-					(BYTE*)"\xB8\x00\x00\x00\x00\x53\xBB",
-					"x????xx");
+					(BYTE*)"\x48\x89\x5C\x24\x00\x57\x48\x83\xEC\x20\x8B\x05\x00\x00\x00\x00\x48\x8D\x1D\x00\x00\x00\x00\x48\x8D\x3D\x00\x00\x00\x00\xA8\x01\x75\x60",
+					"xxxx?xxxxxxx????xxx????xxx????xxxx");
 
-				MH_STATUS status = MH_CreateHook(cmd_register_commands_Address, (LPVOID)& cmd_register_commands_Hook,
+				MH_STATUS status = MH_CreateHook(cmd_register_commands_Address, (LPVOID)&cmd_register_commands_Hook,
 					reinterpret_cast<LPVOID*>(&cmd_register_commands_Orig));
 
 				if (status == MH_OK) {

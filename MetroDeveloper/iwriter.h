@@ -3,13 +3,12 @@
 // TSNest 4A cls
 #pragma pack(push, 1)
 struct iwriter_vtbl {
-	void* iwriter_dtor_0;
-
-	void* valid;
-	void* seek;
-	void* tell;
-	void* w;
-	void* space;
+	void (__thiscall * iwriter_dtor_0)(void* _this);
+	bool (__thiscall * valid)(void *_this);
+	void (__thiscall * seek)(void *_this, unsigned int pos);
+	unsigned int (__thiscall * tell)(void *_this);
+	void (__thiscall * w)(void *_this, const void *_ptr, unsigned int count);
+	void (__thiscall * space)(unsigned int size);
 };
 #pragma pack(pop)
 
