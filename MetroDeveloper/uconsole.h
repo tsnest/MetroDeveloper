@@ -13,7 +13,7 @@ struct uconsole_command {
 
 typedef void(__thiscall* _command_add) (void* _console, uconsole_command* C);
 typedef void(__thiscall* _show)(void* _console);
-typedef void(__cdecl* _execute_deffered) (void* _console, const char* cmd, ...);
+typedef void(__cdecl* _execute_deferred) (void* _console, const char* cmd, ...);
 
 #pragma pack(push, 1)
 struct uconsole_server {
@@ -29,7 +29,7 @@ struct uconsole_server {
 	_show show;
 	void* hide;
 	void* execute;
-	_execute_deffered execute_deferred;
+	_execute_deferred execute_deferred;
 	void* execute_commit;
 	void* enumerate;
 	void* get_token;

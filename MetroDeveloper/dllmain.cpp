@@ -40,6 +40,7 @@ enum enpc_cameras // 2033, Last Light, Redux (changed a bit in Arktika.1)
 };
 
 bool g_unlock_dev_console;
+bool g_quicksave;
 
 #ifndef _WIN64
 string256 navmapFormat;
@@ -558,6 +559,16 @@ void __fastcall clevel_r_on_key_press_Hook2033(void* _this, void* _unused, int a
 		}
 	}
 	
+	// quick save on F5
+	if (g_quicksave)
+	{
+		if (key == 63)
+		{
+			uconsole_server** console = getConsole();
+			(*console)->execute_deferred(console, "gamesave");
+		}
+	}
+
 	if (g_unlock_3rd_person_camera && key <= 61 && key >= 59)
 	{
 		// _this == g_level + 0x4 (+0x4 due to multiple inheritance)
@@ -619,6 +630,16 @@ void __fastcall clevel_r_on_key_press_Hook(void* _this, int action, int key, int
 		{
 			uconsole_server** console = getConsole();
 			(*console)->show(console);
+		}
+	}
+
+	// quick save on F5
+	if (g_quicksave)
+	{
+		if (key == 63)
+		{
+			uconsole_server** console = getConsole();
+			(*console)->execute_deferred(console, "gamesave");
 		}
 	}
 
@@ -1294,6 +1315,7 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 		}
 
 		g_unlock_dev_console = getBool("other", "unlock_dev_console", false);
+		g_quicksave = getBool("other", "quicksave", false);
 
 #ifdef _WIN64
 		bool restore_deleted_commands = getBool("other", "restore_deleted_commands", false);
