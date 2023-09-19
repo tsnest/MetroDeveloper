@@ -39,6 +39,26 @@ enum enpc_cameras // 2033, Last Light, Redux (changed a bit in Arktika.1)
 	enc_max_cam   = 6
 };
 
+bool g_fly;
+typedef void(__fastcall*** _track)(void*);
+#ifdef _WIN64
+typedef _track(__fastcall* _cflycam_cflycam)(void* _this, const char* name);
+typedef LPCRITICAL_SECTION(__fastcall* _memory)();
+typedef void* (__fastcall* _tlsf_memalign)(DWORD64 tlsf, DWORD align, DWORD size);
+typedef void* (__fastcall* _camera_manager_play_track)(DWORD64 _this, void* t, float accrue, float start_pos, void* unused3, void* e, void* unused4, void* unused5, void* owner);
+_tlsf_memalign tlsf_memalign = nullptr;
+DWORD64 g_game = NULL;
+#else
+typedef _track(__thiscall* _cflycam_cflycam)(void* _this, const char* name);
+typedef LPCRITICAL_SECTION(__cdecl* _memory)();
+typedef void* (__thiscall* _camera_manager_play_track)(DWORD _this, void* t, double hz, void* owner);
+void* tlsf_memalign = nullptr;
+DWORD g_game = NULL;
+#endif
+_cflycam_cflycam cflycam_cflycam = nullptr;
+_memory memory = nullptr;
+_camera_manager_play_track camera_manager_play_track = nullptr;
+
 bool g_unlock_dev_console;
 bool g_quicksave;
 
@@ -565,7 +585,17 @@ void __fastcall clevel_r_on_key_press_Hook2033(void* _this, void* _unused, int a
 		if (key == 63)
 		{
 			uconsole_server** console = getConsole();
-			(*console)->execute_deferred(console, "gamesave");
+			(*console)->execute_deferred(console, "gamesave auto_save");
+		}
+	}
+
+	// fly on F7
+	if (g_fly)
+	{
+		if (key == 65)
+		{
+			uconsole_server** console = getConsole();
+			(*console)->execute_deferred(console, "fly 1");
 		}
 	}
 
@@ -663,6 +693,44 @@ void __fastcall clevel_r_on_key_press_Hook(void* _this, int action, int key, int
 		if (key == 61) // F3
 			base_npc_cameras_cam_set(base_npc_cameras, enc_free_look, 1.f, 1);
 	}
+
+	// fly on F7
+	if (g_fly)
+	{
+		if (key == 65)
+		{
+			LPCRITICAL_SECTION mem = memory();
+			++*(DWORD*)((DWORD64)mem + 0x100);
+			EnterCriticalSection(mem);
+			DWORD64 tlsf = *(DWORD64*)((DWORD64)mem + 0x38);
+			// судя по всему, в редуксе выравнивание 0x10. Точный размер памяти хз, выставил такой-же как в арктике
+			void* cflycam_this = tlsf_memalign(tlsf, 0x10, 0x120);
+			LeaveCriticalSection(mem);
+
+			_track track = cflycam_cflycam(cflycam_this, "1");
+
+			if (g_game == NULL)
+			{
+				// читаем адрес инструкции mov rax, cs:g_game
+				// 48 8B 05 ? ? ? ? 4C 8D 85 ? ? ? ? 48 8D 95 ? ? ? ? 48 8B 58 10 48 8D 4C 24 ? E8 ? ? ? ? 48 8B CB 48 89 7C 24 ? 0F 57 DB 0F 57 D2 48 8B D0 E8 ? ? ? ? 48 8D 8D ? ? ? ? E9
+				DWORD64 mov = FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x48\x8B\x05\x00\x00\x00\x00\x4C\x8D\x85\x00\x00\x00\x00\x48\x8D\x95\x00\x00\x00\x00\x48\x8B\x58\x10\x48\x8D\x4C\x24\x00\xE8\x00\x00\x00\x00\x48\x8B\xCB\x48\x89\x7C\x24\x00\x0F\x57\xDB\x0F\x57\xD2\x48\x8B\xD0\xE8\x00\x00\x00\x00\x48\x8D\x8D\x00\x00\x00\x00\xE9",
+					"xxx????xxx????xxx????xxxxxxxx?x????xxxxxxx?xxxxxxxxxx????xxx????x");
+
+				// вычисняем адрес и получаем g_game
+				g_game = *(DWORD64*)(mov + 7 + *(DWORD*)(mov + 3));
+			}
+			DWORD64 _cameras = *(DWORD64*)(g_game + 0x10);
+
+			// я так и не понял для чего этот конструктор, т.к. работает и без его вызова, ну пусть будет...
+			(**track)(track); // _constructor
+
+			void* owner = nullptr;
+			camera_manager_play_track(_cameras, track, 0.0, 0.0, nullptr, nullptr, nullptr, nullptr, &owner);
+		}
+	}
 #else
 	// Last Light
 	if (g_unlock_3rd_person_camera && key <= 61 && key >= 59)
@@ -682,6 +750,55 @@ void __fastcall clevel_r_on_key_press_Hook(void* _this, int action, int key, int
 			base_npc_cameras_cam_set(base_npc_cameras, enc_look_at, 1.f, 1);
 		if (key == 61) // F3
 			base_npc_cameras_cam_set(base_npc_cameras, enc_free_look, 1.f, 1);
+	}
+
+	// fly on F7
+	if (g_fly)
+	{
+		if (key == 65)
+		{
+			LPCRITICAL_SECTION mem = memory();
+			++*(DWORD*)((DWORD)mem + 0x84);
+			EnterCriticalSection(mem);
+			DWORD tlsf = *(DWORD*)((DWORD)mem + 0x20);
+			// судя по всему, в редуксе выравнивание 0x10. Точный размер памяти хз, выставил такой-же как в арктике
+			void* cflycam_this = nullptr;
+
+			__asm
+			{
+				mov esi, tlsf
+				push 0x10
+				push esi
+				mov eax, 0x120
+				call tlsf_memalign
+				mov cflycam_this, eax
+				add esp, 8
+			}
+			LeaveCriticalSection(mem);
+
+			_track track = cflycam_cflycam(cflycam_this, "1");
+
+			if (g_game == NULL)
+			{
+				// читаем адрес инструкции mov eax, g_game
+				// A1 ? ? ? ? 0F 57 C0 56
+				DWORD mov = FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\xA1\x00\x00\x00\x00\x0F\x57\xC0\x56",
+					"x????xxxx");
+
+				// вычисняем адрес и получаем g_game
+				g_game = *(DWORD*)(*(DWORD*)(mov + 1));
+			}
+			DWORD _cameras = *(DWORD*)(g_game + 0x8);
+			
+			// я так и не понял для чего этот конструктор, т.к. работает и без его вызова, ну пусть будет...
+			(**track)(track); // _constructor
+			
+			void* owner = nullptr;
+			camera_manager_play_track(_cameras, track, 0, &owner);
+		}
 	}
 #endif
 
@@ -1354,7 +1471,9 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 #endif
 		}
 
-		if(g_unlock_dev_console || g_unlock_3rd_person_camera)
+		g_fly = getBool("other", "fly", false);
+
+		if(g_unlock_dev_console || g_unlock_3rd_person_camera || g_quicksave || g_fly)
 		{
 #ifndef _WIN64
 			if (minhook) {
@@ -1457,6 +1576,70 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				else {
 					MessageBox(NULL, "MH_CreateHook() != MH_OK", "cmd_register_commands Hook", MB_OK | MB_ICONERROR);
 				}
+			}
+#endif
+		}
+
+		if (g_fly)
+		{
+#ifdef _WIN64
+			// 48 8B C4 48 89 58 10 48 89 68 18 56 57 41 54 41 56 41 57 48 81 EC ? ? ? ? 0F 29 70 C8 0F 29 78 B8 44 0F 29 40
+			cflycam_cflycam = (_cflycam_cflycam)FindPattern(
+				(DWORD64)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x48\x8B\xC4\x48\x89\x58\x10\x48\x89\x68\x18\x56\x57\x41\x54\x41\x56\x41\x57\x48\x81\xEC\x00\x00\x00\x00\x0F\x29\x70\xC8\x0F\x29\x78\xB8\x44\x0F\x29\x40",
+				"xxxxxxxxxxxxxxxxxxxxxx????xxxxxxxxxxxx");
+
+			// 48 83 EC 28 48 8B 05 ? ? ? ? 48 85 C0 75 7F 8B 05 ? ? ? ? 48 89 5C 24 ? A8 01 75 1A 83 C8 01 89 05 ? ? ? ? E8 ? ? ? ? 48 8D 0D ? ? ? ? E8
+			memory = (_memory)FindPattern(
+				(DWORD64)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x48\x83\xEC\x28\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x75\x7F\x8B\x05\x00\x00\x00\x00\x48\x89\x5C\x24\x00\xA8\x01\x75\x1A\x83\xC8\x01\x89\x05\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x8D\x0D\x00\x00\x00\x00\xE8",
+				"xxxxxxx????xxxxxxx????xxxx?xxxxxxxxx????x????xxx????x");
+
+			// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 20 49 8D 40 FF 41 B9 ? ? ? ? 33 F6 48 8B FA 48 8B E9 49 3B C1 77 14
+			tlsf_memalign = (_tlsf_memalign)FindPattern(
+				(DWORD64)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x57\x48\x83\xEC\x20\x49\x8D\x40\xFF\x41\xB9\x00\x00\x00\x00\x33\xF6\x48\x8B\xFA\x48\x8B\xE9\x49\x3B\xC1\x77\x14",
+				"xxxx?xxxx?xxxx?xxxxxxxxxxx????xxxxxxxxxxxxx");
+
+			// 48 89 5C 24 ? 48 89 54 24 ? 57 48 83 EC 60 48 8B 02 48 8B DA 48 8B 94 24 ? ? ? ? 0F 29 74 24 ? 0F 29 7C 24 ? 0F 28 F3 48 8B F9 48 8B CB 0F 28 FA FF 90
+			camera_manager_play_track = (_camera_manager_play_track)FindPattern(
+				(DWORD64)mi.lpBaseOfDll,
+				mi.SizeOfImage,
+				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x54\x24\x00\x57\x48\x83\xEC\x60\x48\x8B\x02\x48\x8B\xDA\x48\x8B\x94\x24\x00\x00\x00\x00\x0F\x29\x74\x24\x00\x0F\x29\x7C\x24\x00\x0F\x28\xF3\x48\x8B\xF9\x48\x8B\xCB\x0F\x28\xFA\xFF\x90",
+				"xxxx?xxxx?xxxxxxxxxxxxxxx????xxxx?xxxx?xxxxxxxxxxxxxx");
+#else
+			if (isLL)
+			{
+				// 55 8B EC 83 E4 F0 81 EC ? ? ? ? 53 56 8B F1 57 33 FF 89 7E 04 89 7E 08 81 66 ? ? ? ? ? C7 06 ? ? ? ? C7 46
+				cflycam_cflycam = (_cflycam_cflycam)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x55\x8B\xEC\x83\xE4\xF0\x81\xEC\x00\x00\x00\x00\x53\x56\x8B\xF1\x57\x33\xFF\x89\x7E\x04\x89\x7E\x08\x81\x66\x00\x00\x00\x00\x00\xC7\x06\x00\x00\x00\x00\xC7\x46",
+					"xxxxxxxx????xxxxxxxxxxxxxxx?????xx????xx");
+
+				// 55 8B EC 83 E4 F8 A1 ? ? ? ? 85 C0 75 48 B8 ? ? ? ? 84 05 ? ? ? ? 75 18 09 05 ? ? ? ? E8 ? ? ? ? 68 ? ? ? ? E8 ? ? ? ? 83 C4 04
+				memory = (_memory)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x55\x8B\xEC\x83\xE4\xF8\xA1\x00\x00\x00\x00\x85\xC0\x75\x48\xB8\x00\x00\x00\x00\x84\x05\x00\x00\x00\x00\x75\x18\x09\x05\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x68\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x83\xC4\x04",
+					"xxxxxxx????xxxxx????xx????xxxx????x????x????x????xxx");
+
+				// 53 8B 5C 24 0C 55 56 33 ED 57 85 C0 74 19 3D ? ? ? ? 73 12 83 C0 03 83 E0 FC 8B E8 83 F8 0C 77 05 BD
+				tlsf_memalign = (void*)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x53\x8B\x5C\x24\x0C\x55\x56\x33\xED\x57\x85\xC0\x74\x19\x3D\x00\x00\x00\x00\x73\x12\x83\xC0\x03\x83\xE0\xFC\x8B\xE8\x83\xF8\x0C\x77\x05\xBD",
+					"xxxxxxxxxxxxxxx");
+
+				// 83 EC 10 53 56 8B 74 24 1C 8B 06 8B 50 44 57 8B F9 8B 4C 24 2C 51 8B CE FF D2 F3 0F 10 44 24 ? 8B 06 8B 50 6C 83 EC 08 F3 0F 11 44 24
+				camera_manager_play_track = (_camera_manager_play_track)FindPattern(
+					(DWORD)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x83\xEC\x10\x53\x56\x8B\x74\x24\x1C\x8B\x06\x8B\x50\x44\x57\x8B\xF9\x8B\x4C\x24\x2C\x51\x8B\xCE\xFF\xD2\xF3\x0F\x10\x44\x24\x00\x8B\x06\x8B\x50\x6C\x83\xEC\x08\xF3\x0F\x11\x44\x24",
+					"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?xxxxxxxxxxxxx");
 			}
 #endif
 		}
