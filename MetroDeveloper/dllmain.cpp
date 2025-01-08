@@ -712,12 +712,21 @@ void __fastcall clevel_r_on_key_press_Hook(void* _this, int action, int key, int
 			if (g_game == NULL)
 			{
 				// читаем адрес инструкции mov rax, cs:g_game
-				// 48 8B 05 ? ? ? ? 4C 8D 85 ? ? ? ? 48 8D 95 ? ? ? ? 48 8B 58 10 48 8D 4C 24 ? E8 ? ? ? ? 48 8B CB 48 89 7C 24 ? 0F 57 DB 0F 57 D2 48 8B D0 E8 ? ? ? ? 48 8D 8D ? ? ? ? E9
+				// 48 8B 05 ? ? ? ? 4C 8D 85 ? ? ? ? 48 8D 95 ? ? ? ? 48 8B 58 10 48 8D 4C 24 ? E8 ? ? ? ? 48 8B CB 48 89 7C 24 ? 0F 57 DB 0F 57 D2 48 8B D0 E8 ? ? ? ? 48 8D 8D ? ? ? ? E9 - ON STEAM
 				DWORD64 mov = FindPattern(
 					(DWORD64)mi.lpBaseOfDll,
 					mi.SizeOfImage,
 					(BYTE*)"\x48\x8B\x05\x00\x00\x00\x00\x4C\x8D\x85\x00\x00\x00\x00\x48\x8D\x95\x00\x00\x00\x00\x48\x8B\x58\x10\x48\x8D\x4C\x24\x00\xE8\x00\x00\x00\x00\x48\x8B\xCB\x48\x89\x7C\x24\x00\x0F\x57\xDB\x0F\x57\xD2\x48\x8B\xD0\xE8\x00\x00\x00\x00\x48\x8D\x8D\x00\x00\x00\x00\xE9",
 					"xxx????xxx????xxx????xxxxxxxx?x????xxxxxxx?xxxxxxxxxx????xxx????x");
+
+				if (mov == NULL) {
+					// 48 8B 05 ? ? ? ? 4C 8D 85 ? ? ? ? 48 8D 95 ? ? ? ? 48 8D 4C 24 ? 48 8B 58 10 E8 ? ? ? ? 48 8B D0 48 89 7C 24 ? 0F 57 DB 0F 57 D2 48 8B CB E8 ? ? ? ? B8 ? ? ? ? E9 ? ? ? ? 48 8B 05 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? 48 8B 88 - ON EGS
+					mov = FindPattern(
+						(DWORD64)mi.lpBaseOfDll,
+						mi.SizeOfImage,
+						(BYTE*)"\x48\x8B\x05\x00\x00\x00\x00\x4C\x8D\x85\x00\x00\x00\x00\x48\x8D\x95\x00\x00\x00\x00\x48\x8D\x4C\x24\x00\x48\x8B\x58\x10\xE8\x00\x00\x00\x00\x48\x8B\xD0\x48\x89\x7C\x24\x00\x0F\x57\xDB\x0F\x57\xD2\x48\x8B\xCB\xE8\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x84\x00\x00\x00\x00\x48\x8B\x88",
+						"xxx????xxx????xxx????xxxx?xxxxx????xxxxxxx?xxxxxxxxxx????x????x????xxx????xxxxx????xxx");
+				}
 
 				// вычисняем адрес и получаем g_game
 				g_game = *(DWORD64*)(mov + 7 + *(DWORD*)(mov + 3));
@@ -998,12 +1007,14 @@ void __cdecl vfs_rbuffered_Hook(const char* fn, void* a1, _method method)
 typedef void* (__fastcall* _vfs_ropen_package)(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size);
 typedef void* (__fastcall* _vfs_ropen_os)(void* result, const char* fn);
 typedef void (__fastcall* _vfs_rbuffered_package)(void* package, const char* fn, void* cb, const int force_raw);
+typedef void(__fastcall* _vfs_rbuffered_packageEGS)(const char* fn, void* cb, const int force_raw);
 typedef void* (__fastcall* _rblock_init)(const char* fn, unsigned int* f_offset, unsigned int* f_size, unsigned int not_packaged);
 typedef bool (__fastcall* _vfs_package_registry_level_downloaded)(void *_this, const char *map_name);
 
 _vfs_ropen_package vfs_ropen_package_Orig = nullptr;
 _vfs_ropen_os vfs_ropen_os = nullptr;
 _vfs_rbuffered_package vfs_rbuffered_package_Orig = nullptr;
+_vfs_rbuffered_packageEGS vfs_rbuffered_package_OrigEGS = nullptr;
 _rblock_init rblock_init_Orig = nullptr;
 _vfs_package_registry_level_downloaded vfs_package_registry_level_downloaded_Orig = nullptr;
 
@@ -1025,6 +1036,7 @@ struct fastdelegate
 	bool (*method)(void* object, LPVOID& buffer, size_t size);
 };
 
+// ON STEAM 
 void __fastcall vfs_rbuffered_package_Hook(void* package, const char* fn, fastdelegate* cb, const int force_raw)
 {
 	//printf("%s\n", fn);
@@ -1049,6 +1061,33 @@ void __fastcall vfs_rbuffered_package_Hook(void* package, const char* fn, fastde
 	}
 
 	vfs_rbuffered_package_Orig(package, fn, cb, force_raw);
+}
+
+// ON EGS
+void __fastcall vfs_rbuffered_package_HookEGS(const char* fn, fastdelegate* cb, const int force_raw)
+{
+	//printf("%s\n", fn);
+
+	if (GetFileAttributes(fn) != 0xFFFFFFFF)
+	{
+		size_t size;
+		void* buffer = malloc(0x30000);
+		if (buffer)
+		{
+			FILE* f = fopen(fn, "rb");
+			if (f)
+			{
+				while (size = fread(buffer, 1, 0x30000, f))
+					cb->method(cb->object, buffer, size);
+
+				fclose(f);
+			}
+			free(buffer);
+			return;
+		}
+	}
+
+	vfs_rbuffered_package_OrigEGS(fn, cb, force_raw);
 }
 
 void* __fastcall rblock_init_Hook(const char* fn, unsigned int* f_offset, unsigned int* f_size, unsigned int not_packaged)
@@ -1149,12 +1188,21 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				(BYTE*)"\x75\x31\x8B\x3F",
 				"xxxx");
 #else
-			// 75 ? 49 8B 45 ? 48 8D 50 ? 48 85 C0 75 ? 48 8B D6 48 8D 0D
+			// 75 ? 49 8B 45 ? 48 8D 50 ? 48 85 C0 75 ? 48 8B D6 48 8D 0D - ON STEAM
 			LPVOID jne = (LPVOID)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x75\x00\x49\x8B\x45\x00\x48\x8D\x50\x00\x48\x85\xC0\x75\x00\x48\x8B\xD6\x48\x8D\x0D",
 				"x?xxx?xxx?xxxx?xxxxxx");
+
+			if (jne == NULL) {
+				// 75 6D 48 8B 06 48 8D 0D ? ? ? ? 33 F6 48 85 C0 48 8D 50 14 48 0F 44 D6 E8 ? ? ? ? 49 8B 1C 24 4C 8D 05 ? ? ? ? 48 8D 95 - ON EGS
+				jne = (LPVOID)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x75\x6D\x48\x8B\x06\x48\x8D\x0D\x00\x00\x00\x00\x33\xF6\x48\x85\xC0\x48\x8D\x50\x14\x48\x0F\x44\xD6\xE8\x00\x00\x00\x00\x49\x8B\x1C\x24\x4C\x8D\x05\x00\x00\x00\x00\x48\x8D\x95",
+					"xxxxxxxx????xxxxxxxxxxxxxx????xxxxxxx????xxx");
+			}
 #endif
 
 			BYTE JMP[] = { 0xEB };
@@ -1222,35 +1270,66 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_rbuffered Hook", MB_OK | MB_ICONERROR);
 			}
 #else
-			// 48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 54 41 56 41 57 48 83 EC ? 45 33 E4 45 8B F9
+			// 48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 54 41 56 41 57 48 83 EC ? 45 33 E4 45 8B F9 - ON STEAM
 			LPVOID vfs_ropen_package_Address = (LPVOID)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x56\x57\x41\x54\x41\x56\x41\x57\x48\x83\xEC\x00\x45\x33\xE4\x45\x8B\xF9",
 				"xxxx?xxxx?xxxxxxxxxxx?xxxxxx");
 
-			// 48 8B C4 53 55 57 41 56 41 57 48 81 EC
+			if (vfs_ropen_package_Address == NULL) {
+				// 48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 54 41 56 41 57 48 83 EC 30 45 33 E4 41 8B E9 49 8B F0 48 8B DA 4C 8B F1 44 39 62 0C 0F 84 ? ? ? ? 4D 8B C8 4C 89 64 24 ? 4C 8B 02 41 BF ? ? ? ? 33 D2 - ON EGS
+				vfs_ropen_package_Address = (LPVOID)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x56\x57\x41\x54\x41\x56\x41\x57\x48\x83\xEC\x30\x45\x33\xE4\x41\x8B\xE9\x49\x8B\xF0\x48\x8B\xDA\x4C\x8B\xF1\x44\x39\x62\x0C\x0F\x84\x00\x00\x00\x00\x4D\x8B\xC8\x4C\x89\x64\x24\x00\x4C\x8B\x02\x41\xBF\x00\x00\x00\x00\x33\xD2",
+					"xxxx?xxxx?xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xxxxxxx?xxxxx????xx");
+			}
+
+			// 48 8B C4 53 55 57 41 56 41 57 48 81 EC - ON STEAM
 			vfs_ropen_os = (_vfs_ropen_os)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x48\x8B\xC4\x53\x55\x57\x41\x56\x41\x57\x48\x81\xEC",
 				"xxxxxxxxxxxxx");
 
-			// 48 89 5C 24 ? 48 89 74 24 ? 41 56 48 83 EC ? 83 79
+			if (vfs_ropen_os == NULL) {
+				// 48 8B C4 48 89 58 10 55 56 57 41 54 41 57 48 81 EC ? ? ? ? 33 DB 4C 8B F9 48 8D 4C 24 ? 48 89 58 20 48 89 58 18 8B FB 8B F3 E8 - ON EGS
+				vfs_ropen_os = (_vfs_ropen_os)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x48\x8B\xC4\x48\x89\x58\x10\x55\x56\x57\x41\x54\x41\x57\x48\x81\xEC\x00\x00\x00\x00\x33\xDB\x4C\x8B\xF9\x48\x8D\x4C\x24\x00\x48\x89\x58\x20\x48\x89\x58\x18\x8B\xFB\x8B\xF3\xE8",
+					"xxxxxxxxxxxxxxxxx????xxxxxxxxx?xxxxxxxxxxxxx");
+			}
+
+			// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 41 56 48 83 EC 40 48 8B 1D ? ? ? ? 48 8B F1 48 8B 6A 08 4C 8B 32 48 85 DB 75 0F E8 ? ? ? ? 48 8B D8 48 89 05 - ON EGS
 			LPVOID vfs_rbuffered_package_Address = (LPVOID)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
-				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x41\x56\x48\x83\xEC\x00\x83\x79",
-				"xxxx?xxxx?xxxxx?xx");
+				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x41\x56\x48\x83\xEC\x40\x48\x8B\x1D\x00\x00\x00\x00\x48\x8B\xF1\x48\x8B\x6A\x08\x4C\x8B\x32\x48\x85\xDB\x75\x0F\xE8\x00\x00\x00\x00\x48\x8B\xD8\x48\x89\x05",
+				"xxxx?xxxx?xxxx?xxxxxxxxx");
+
+			bool onEGS = true;
+
+			if (vfs_rbuffered_package_Address == NULL) {
+				// 48 89 5C 24 ? 48 89 74 24 ? 41 56 48 83 EC ? 83 79 - ON STEAM
+				LPVOID vfs_rbuffered_package_Address = (LPVOID)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x41\x56\x48\x83\xEC\x00\x83\x79",
+					"xxxx?xxxx?xxxxx?xx");
+
+				onEGS = false;
+			}
 
 			// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 41 56 48 81 EC ? ? ? ? 33 ED
-			LPVOID rblock_init_Address = (LPVOID)FindPattern(
+			/*LPVOID rblock_init_Address = (LPVOID)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x41\x56\x48\x81\xEC\x00\x00\x00\x00\x33\xED",
-				"xxxx?xxxx?xxxx?xxxxx????xx");
+				"xxxx?xxxx?xxxx?xxxxx????xx");*/
 				
-			// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 54 41 56 41 57 48 83 EC 20 44 0F B7 B9 ? ? ? ? 33 DB 4C 8B F2 4C 8B E1 45 85 FF 74 6E
+			// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 54 41 56 41 57 48 83 EC 20 44 0F B7 B9 ? ? ? ? 33 DB 4C 8B F2 4C 8B E1 45 85 FF 74 6E - ONLY ON STEAM
 			LPVOID vfs_package_registry_level_downloaded_Address = (LPVOID)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
@@ -1265,12 +1344,22 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_ropen_package Hook", MB_OK | MB_ICONERROR);
 			}
 
-			if (MH_CreateHook(vfs_rbuffered_package_Address, &vfs_rbuffered_package_Hook, reinterpret_cast<LPVOID*>(&vfs_rbuffered_package_Orig)) == MH_OK) {
-				if (MH_EnableHook(vfs_rbuffered_package_Address) != MH_OK) {
-					MessageBox(NULL, "MH_EnableHook() != MH_OK", "vfs_rbuffered_package Hook", MB_OK | MB_ICONERROR);
+			if (!onEGS) {
+				if (MH_CreateHook(vfs_rbuffered_package_Address, &vfs_rbuffered_package_Hook, reinterpret_cast<LPVOID*>(&vfs_rbuffered_package_Orig)) == MH_OK) {
+					if (MH_EnableHook(vfs_rbuffered_package_Address) != MH_OK) {
+						MessageBox(NULL, "MH_EnableHook() != MH_OK", "vfs_rbuffered_package Hook", MB_OK | MB_ICONERROR);
+					}
+				} else {
+					MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_rbuffered_package Hook", MB_OK | MB_ICONERROR);
 				}
 			} else {
-				MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_rbuffered_package Hook", MB_OK | MB_ICONERROR);
+				if (MH_CreateHook(vfs_rbuffered_package_Address, &vfs_rbuffered_package_HookEGS, reinterpret_cast<LPVOID*>(&vfs_rbuffered_package_OrigEGS)) == MH_OK) {
+					if (MH_EnableHook(vfs_rbuffered_package_Address) != MH_OK) {
+						MessageBox(NULL, "MH_EnableHook() != MH_OK", "vfs_rbuffered_package Hook", MB_OK | MB_ICONERROR);
+					}
+				} else {
+					MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_rbuffered_package Hook", MB_OK | MB_ICONERROR);
+				}
 			}
 
 			/*if (MH_CreateHook(rblock_init_Address, &rblock_init_Hook, reinterpret_cast<LPVOID*>(&rblock_init_Orig)) == MH_OK) {
@@ -1281,12 +1370,14 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 				MessageBox(NULL, "MH_CreateHook() != MH_OK", "rblock_init Hook", MB_OK | MB_ICONERROR);
 			}*/
 			
-			if (MH_CreateHook(vfs_package_registry_level_downloaded_Address, &vfs_package_registry_level_downloaded_Hook, reinterpret_cast<LPVOID*>(&vfs_package_registry_level_downloaded_Orig)) == MH_OK) {
-				if (MH_EnableHook(vfs_package_registry_level_downloaded_Address) != MH_OK) {
-					MessageBox(NULL, "MH_EnableHook() != MH_OK", "vfs_rbuffered_package Hook", MB_OK | MB_ICONERROR);
+			if (vfs_package_registry_level_downloaded_Address != NULL) {
+				if (MH_CreateHook(vfs_package_registry_level_downloaded_Address, &vfs_package_registry_level_downloaded_Hook, reinterpret_cast<LPVOID*>(&vfs_package_registry_level_downloaded_Orig)) == MH_OK) {
+					if (MH_EnableHook(vfs_package_registry_level_downloaded_Address) != MH_OK) {
+						MessageBox(NULL, "MH_EnableHook() != MH_OK", "vfs_package_registry_level_downloaded Hook", MB_OK | MB_ICONERROR);
+					}
+				} else {
+					MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_package_registry_level_downloaded Hook", MB_OK | MB_ICONERROR);
 				}
-			} else {
-				MessageBox(NULL, "MH_CreateHook() != MH_OK", "vfs_rbuffered_package Hook", MB_OK | MB_ICONERROR);
 			}
 #endif
 		}
@@ -1317,12 +1408,21 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 					"x????x????xxxxxx");
 			}
 #else
-			// 40 53 B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 33 C0
+			// 40 53 B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 33 C0 - ON STEAM
 			slog_Address = (LPVOID)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x40\x53\xB8\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x2B\xE0\x33\xC0",
 				"xxx????x????xxxxx");
+
+			if (slog_Address == NULL) {
+				// 48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 56 B8 ? ? ? ? E8 - ON EGS
+				slog_Address = (LPVOID)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x56\x57\x41\x56\xB8\x00\x00\x00\x00\xE8",
+					"xxxx?xxxx?xxxxx????x");
+			}
 #endif
 
 			if (minhook) {
@@ -1391,12 +1491,22 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			BYTE ret[] = { 0xC3 };
 			ASMWrite(IntroAddress, ret, sizeof(ret));
 #else
-			// 73 1D 33 C9
+			// 73 1D 33 C9 - ON STEAM
 			IntroAddress = (LPVOID)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x73\x1D\x33\xC9",
 				"xxxx");
+
+			if (IntroAddress == NULL) {
+				// 73 15 0F B7 C0 48 8D 8D - ON EGS
+				IntroAddress = (LPVOID)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x73\x15\x0F\xB7\xC0\x48\x8D\x8D",
+					"xxxxxxxx");
+			}
+
 			BYTE jmp[] = { 0xEB };
 			ASMWrite(IntroAddress, jmp, sizeof(jmp));
 #endif
@@ -1406,11 +1516,21 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 		if (g_unlock_3rd_person_camera)
 		{
 #ifdef _WIN64
+			// 48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 30 48 63 41 68 48 8B F1 0F 29 74 24 ? 4C 8B 74 C1 ? 89 51 68 48 63 C2 0F 28 F2 48 8B 5C C1 ? 49 8B 06 49 8B CE 41 8B F9 FF 50 28 48 8B 03 44 8B C7 49 8B D6 48 8B CB FF 50 20 8B 05 ? ? ? ? A8 01 75 20 - ON STEAM
 			base_npc_cameras_cam_set = (_base_npc_cameras_cam_set)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x30\x48\x63\x41\x68\x48\x8B\xF1\x0F\x29\x74\x24\x00\x4C\x8B\x74\xC1\x00\x89\x51\x68\x48\x63\xC2\x0F\x28\xF2\x48\x8B\x5C\xC1\x00\x49\x8B\x06\x49\x8B\xCE\x41\x8B\xF9\xFF\x50\x28\x48\x8B\x03\x44\x8B\xC7\x49\x8B\xD6\x48\x8B\xCB\xFF\x50\x20\x8B\x05\x00\x00\x00\x00\xA8\x01\x75\x20",
 				"xxxx?xxxx?xxxx?xxxxxxxxxxxxxxxxx?xxxx?xxxxxxxxxxxxx?xxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xxxx");
+
+			if (base_npc_cameras_cam_set == NULL) {
+				// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 30 48 63 41 68 48 8B E9 0F 29 74 24 ? 41 8B F9 0F 28 F2 48 8B 74 C1 ? 89 51 68 48 63 C2 48 8B 5C C1 ? 48 8B CE 48 8B 06 FF 50 28 48 8B 03 44 8B C7 48 8B D6 48 8B CB FF 50 20 E8 ? ? ? ? 48 8B D8 BF ? ? ? ? E8 - ON EGS
+				base_npc_cameras_cam_set = (_base_npc_cameras_cam_set)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x57\x48\x83\xEC\x30\x48\x63\x41\x68\x48\x8B\xE9\x0F\x29\x74\x24\x00\x41\x8B\xF9\x0F\x28\xF2\x48\x8B\x74\xC1\x00\x89\x51\x68\x48\x63\xC2\x48\x8B\x5C\xC1\x00\x48\x8B\xCE\x48\x8B\x06\xFF\x50\x28\x48\x8B\x03\x44\x8B\xC7\x48\x8B\xD6\x48\x8B\xCB\xFF\x50\x20\xE8\x00\x00\x00\x00\x48\x8B\xD8\xBF\x00\x00\x00\x00\xE8",
+					"xxxx?xxxx?xxxx?xxxxxxxxxxxxxxxx?xxxxxxxxxx?xxxxxxxxxx?xxxxxxxxxxxxxxxxxxxxxxxxx????xxxx????x");
+			}
 #else
 			if (isLL)
 			{
@@ -1462,12 +1582,21 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 					"xxxxx?x????xxx?x????xxx????x????x????xx");
 			}
 #else
-			// 48 83 ec ? 48 8b 05 ? ? ? ? 48 85 c0 75 ? e8 ? ? ? ? 48 8b 05
+			// 48 83 ec ? 48 8b 05 ? ? ? ? 48 85 c0 75 ? e8 ? ? ? ? 48 8b 05 - ON STEAM
 			getConsole = (_getConsole)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x48\x83\xec\x00\x48\x8b\x05\x00\x00\x00\x00\x48\x85\xc0\x75\x00\xe8\x00\x00\x00\x00\x48\x8b\x05",
 				"xxx?xxx????xxxx?x????xxx");
+
+			if (getConsole == NULL) {
+				// 48 83 EC 38 48 8B 05 ? ? ? ? 48 85 C0 0F 85 ? ? ? ? 48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 - ON EGS
+				getConsole = (_getConsole)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x48\x83\xEC\x38\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x85\x00\x00\x00\x00\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24",
+					"xxxxxxx????xxxxx????xxxx?xxxx?xxxx");
+			}
 #endif
 		}
 
@@ -1498,12 +1627,21 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			}
 #else
 			if (minhook) {
-				// 40 53 55 56 57 48 83 EC ? 48 8B F1
+				// 40 53 55 56 57 48 83 EC ? 48 8B F1 - ON STEAM
 				LPVOID clevel_r_on_key_press_Address = (LPVOID)FindPattern(
 					(DWORD64)mi.lpBaseOfDll,
 					mi.SizeOfImage,
 					(BYTE*)"\x40\x53\x55\x56\x57\x48\x83\xEC\x00\x48\x8B\xF1",
 					"xxxxxxxx?xxx");
+
+				if (clevel_r_on_key_press_Address == NULL) {
+					// 40 55 56 57 41 57 48 83 EC 58 - ON EGS
+					clevel_r_on_key_press_Address = (LPVOID)FindPattern(
+						(DWORD64)mi.lpBaseOfDll,
+						mi.SizeOfImage,
+						(BYTE*)"\x40\x55\x56\x57\x41\x57\x48\x83\xEC\x58",
+						"xxxxxxxxxx");
+				}
 
 				MH_STATUS status = MH_CreateHook(clevel_r_on_key_press_Address, (LPVOID)&clevel_r_on_key_press_Hook,
 					reinterpret_cast<LPVOID*>(&clevel_r_on_key_press_Orig));
@@ -1558,12 +1696,21 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 			}
 #else
 			if (minhook) {
-				// 48 89 5C 24 ? 57 48 83 EC 20 8B 05 ? ? ? ? 48 8D 1D ? ? ? ? 48 8D 3D ? ? ? ? A8 01 75 60
+				// 48 89 5C 24 ? 57 48 83 EC 20 8B 05 ? ? ? ? 48 8D 1D ? ? ? ? 48 8D 3D ? ? ? ? A8 01 75 60 - ON STEAM
 				LPVOID cmd_register_commands_Address = (LPVOID)FindPattern(
 					(DWORD64)mi.lpBaseOfDll,
 					mi.SizeOfImage,
 					(BYTE*)"\x48\x89\x5C\x24\x00\x57\x48\x83\xEC\x20\x8B\x05\x00\x00\x00\x00\x48\x8D\x1D\x00\x00\x00\x00\x48\x8D\x3D\x00\x00\x00\x00\xA8\x01\x75\x60",
 					"xxxx?xxxxxxx????xxx????xxx????xxxx");
+
+				if (cmd_register_commands_Address == NULL) {
+					// 40 53 48 83 EC 20 65 48 8B 04 25 ? ? ? ? 8B 0D ? ? ? ? BA ? ? ? ? 48 8B 1C C8 48 03 DA 8B 03 39 05 ? ? ? ? 0F 8F ? ? ? ? E8 ? ? ? ? 48 8D 15 ? ? ? ? 48 8B C8 4C 8B 00 41 FF 50 18 8B 03 39 05 ? ? ? ? 0F 8F - ON EGS
+					cmd_register_commands_Address = (LPVOID)FindPattern(
+						(DWORD64)mi.lpBaseOfDll,
+						mi.SizeOfImage,
+						(BYTE*)"\x40\x53\x48\x83\xEC\x20\x65\x48\x8B\x04\x25\x00\x00\x00\x00\x8B\x0D\x00\x00\x00\x00\xBA\x00\x00\x00\x00\x48\x8B\x1C\xC8\x48\x03\xDA\x8B\x03\x39\x05\x00\x00\x00\x00\x0F\x8F\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x8D\x15\x00\x00\x00\x00\x48\x8B\xC8\x4C\x8B\x00\x41\xFF\x50\x18\x8B\x03\x39\x05\x00\x00\x00\x00\x0F\x8F",
+						"xxxxxxxxxxx????xx????x????xxxxxxxxxxx????xx????x????xxx????xxxxxxxxxxxxxx????xx");
+				}
 
 				MH_STATUS status = MH_CreateHook(cmd_register_commands_Address, (LPVOID)&cmd_register_commands_Hook,
 					reinterpret_cast<LPVOID*>(&cmd_register_commands_Orig));
@@ -1583,33 +1730,69 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 		if (g_fly)
 		{
 #ifdef _WIN64
-			// 48 8B C4 48 89 58 10 48 89 68 18 56 57 41 54 41 56 41 57 48 81 EC ? ? ? ? 0F 29 70 C8 0F 29 78 B8 44 0F 29 40
+			// 48 8B C4 48 89 58 10 48 89 68 18 56 57 41 54 41 56 41 57 48 81 EC ? ? ? ? 0F 29 70 C8 0F 29 78 B8 44 0F 29 40 - ON STEAM
 			cflycam_cflycam = (_cflycam_cflycam)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x48\x8B\xC4\x48\x89\x58\x10\x48\x89\x68\x18\x56\x57\x41\x54\x41\x56\x41\x57\x48\x81\xEC\x00\x00\x00\x00\x0F\x29\x70\xC8\x0F\x29\x78\xB8\x44\x0F\x29\x40",
 				"xxxxxxxxxxxxxxxxxxxxxx????xxxxxxxxxxxx");
 
-			// 48 83 EC 28 48 8B 05 ? ? ? ? 48 85 C0 75 7F 8B 05 ? ? ? ? 48 89 5C 24 ? A8 01 75 1A 83 C8 01 89 05 ? ? ? ? E8 ? ? ? ? 48 8D 0D ? ? ? ? E8
+			if (cflycam_cflycam == NULL) {
+				// 48 8B C4 48 89 58 10 48 89 68 18 48 89 70 20 57 41 56 41 57 48 81 EC ? ? ? ? 0F 29 70 D8 48 8D B1 - ON EGS
+				cflycam_cflycam = (_cflycam_cflycam)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x48\x8B\xC4\x48\x89\x58\x10\x48\x89\x68\x18\x48\x89\x70\x20\x57\x41\x56\x41\x57\x48\x81\xEC\x00\x00\x00\x00\x0F\x29\x70\xD8\x48\x8D\xB1",
+					"xxxxxxxxxxxxxxxxxxxxxxx????xxxxxxx");
+			}
+
+			// 48 83 EC 28 48 8B 05 ? ? ? ? 48 85 C0 75 7F 8B 05 ? ? ? ? 48 89 5C 24 ? A8 01 75 1A 83 C8 01 89 05 ? ? ? ? E8 ? ? ? ? 48 8D 0D ? ? ? ? E8 - ON STEAM
 			memory = (_memory)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x48\x83\xEC\x28\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x75\x7F\x8B\x05\x00\x00\x00\x00\x48\x89\x5C\x24\x00\xA8\x01\x75\x1A\x83\xC8\x01\x89\x05\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x8D\x0D\x00\x00\x00\x00\xE8",
 				"xxxxxxx????xxxxxxx????xxxx?xxxxxxxxx????x????xxx????x");
 
-			// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 20 49 8D 40 FF 41 B9 ? ? ? ? 33 F6 48 8B FA 48 8B E9 49 3B C1 77 14
+			if (memory == NULL) {
+				// 48 83 EC 28 48 8B 05 ? ? ? ? 48 85 C0 0F 85 ? ? ? ? 65 48 8B 04 25 ? ? ? ? 48 89 5C 24 ? 48 89 6C 24 ? 48 8D 2D ? ? ? ? 48 89 74 24 ? 33 F6 48 8B 08 BA ? ? ? ? 48 89 7C 24 ? 8B 04 0A 39 05 ? ? ? ? 0F 8F - ON EGS
+				memory = (_memory)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x48\x83\xEC\x28\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x85\x00\x00\x00\x00\x65\x48\x8B\x04\x25\x00\x00\x00\x00\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x8D\x2D\x00\x00\x00\x00\x48\x89\x74\x24\x00\x33\xF6\x48\x8B\x08\xBA\x00\x00\x00\x00\x48\x89\x7C\x24\x00\x8B\x04\x0A\x39\x05\x00\x00\x00\x00\x0F\x8F",
+					"xxxxxxx????xxxxx????xxxxx????xxxx?xxxx?xxx????xxxx?xxxxxx????xxxx?xxxxx????xx");
+			}
+
+			// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 20 49 8D 40 FF 41 B9 ? ? ? ? 33 F6 48 8B FA 48 8B E9 49 3B C1 77 14 - ON STEAM
 			tlsf_memalign = (_tlsf_memalign)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x57\x48\x83\xEC\x20\x49\x8D\x40\xFF\x41\xB9\x00\x00\x00\x00\x33\xF6\x48\x8B\xFA\x48\x8B\xE9\x49\x3B\xC1\x77\x14",
 				"xxxx?xxxx?xxxx?xxxxxxxxxxx????xxxxxxxxxxxxx");
 
-			// 48 89 5C 24 ? 48 89 54 24 ? 57 48 83 EC 60 48 8B 02 48 8B DA 48 8B 94 24 ? ? ? ? 0F 29 74 24 ? 0F 29 7C 24 ? 0F 28 F3 48 8B F9 48 8B CB 0F 28 FA FF 90
+			if (tlsf_memalign == NULL) {
+				// 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC 20 48 8B DA 49 8D 40 FF 33 D2 41 B9 ? ? ? ? 48 8B F1 8B FA 49 3B C1 77 14 BF ? ? ? ? 49 8D 40 07 48 83 E0 F8 48 3B C7 48 0F 47 F8 - ON EGS
+				tlsf_memalign = (_tlsf_memalign)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x57\x48\x83\xEC\x20\x48\x8B\xDA\x49\x8D\x40\xFF\x33\xD2\x41\xB9\x00\x00\x00\x00\x48\x8B\xF1\x8B\xFA\x49\x3B\xC1\x77\x14\xBF\x00\x00\x00\x00\x49\x8D\x40\x07\x48\x83\xE0\xF8\x48\x3B\xC7\x48\x0F\x47\xF8",
+					"xxxx?xxxx?xxxxxxxxxxxxxxxx????xxxxxxxxxxx????xxxxxxxxxxxxxxx");
+			}
+
+			// 48 89 5C 24 ? 48 89 54 24 ? 57 48 83 EC 60 48 8B 02 48 8B DA 48 8B 94 24 ? ? ? ? 0F 29 74 24 ? 0F 29 7C 24 ? 0F 28 F3 48 8B F9 48 8B CB 0F 28 FA FF 90 - ON STEAM
 			camera_manager_play_track = (_camera_manager_play_track)FindPattern(
 				(DWORD64)mi.lpBaseOfDll,
 				mi.SizeOfImage,
 				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x54\x24\x00\x57\x48\x83\xEC\x60\x48\x8B\x02\x48\x8B\xDA\x48\x8B\x94\x24\x00\x00\x00\x00\x0F\x29\x74\x24\x00\x0F\x29\x7C\x24\x00\x0F\x28\xF3\x48\x8B\xF9\x48\x8B\xCB\x0F\x28\xFA\xFF\x90",
 				"xxxx?xxxx?xxxxxxxxxxxxxxx????xxxx?xxxx?xxxxxxxxxxxxxx");
+
+			if (camera_manager_play_track == NULL) {
+				// 48 89 5C 24 ? 48 89 74 24 ? 48 89 54 24 ? 57 48 83 EC 50 48 8B 02 48 8B DA 48 8B 94 24 ? ? ? ? 48 8B F9 0F 29 74 24 ? 48 8B CB 0F 29 7C 24 ? 0F 28 F2 0F 28 FB FF 90 - ON EGS
+				camera_manager_play_track = (_camera_manager_play_track)FindPattern(
+					(DWORD64)mi.lpBaseOfDll,
+					mi.SizeOfImage,
+					(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x54\x24\x00\x57\x48\x83\xEC\x50\x48\x8B\x02\x48\x8B\xDA\x48\x8B\x94\x24\x00\x00\x00\x00\x48\x8B\xF9\x0F\x29\x74\x24\x00\x48\x8B\xCB\x0F\x29\x7C\x24\x00\x0F\x28\xF2\x0F\x28\xFB\xFF\x90",
+					"xxxx?xxxx?xxxx?xxxxxxxxxxxxxxx????xxxxxxx?xxxxxxx?xxxxxxxx");
+			}
 #else
 			if (isLL)
 			{
