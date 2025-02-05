@@ -25,6 +25,18 @@
     <Filter Include="Файлы исходного кода\MinHook\hde">
       <UniqueIdentifier>{14079165-a793-4f02-a059-7072630def1f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Файлы исходного кода\patches">
+      <UniqueIdentifier>{9b3beeb1-f483-45b8-a9f7-11e202ffb7c5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Заголовочные файлы\patches">
+      <UniqueIdentifier>{b9510ef6-06d7-4fd9-86f7-c7c4f77150f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы исходного кода\patches\Arktika1">
+      <UniqueIdentifier>{a298be17-96bb-42f0-a58b-22baf8e68ed8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Заголовочные файлы\patches\Arktika1">
+      <UniqueIdentifier>{527af1fd-825c-415b-90fc-21bc9d0b45fe}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -59,6 +71,66 @@
     </ClCompile>
     <ClCompile Include="uconsole.cpp">
       <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
+    <ClCompile Include="NoIntro.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="BadQuitReset.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsoleUnlocker.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="AllowDDS.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="ContentUnlocker.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="RestoreCommands.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="Unlock3rdPerson.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="QuickSave.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="Fly.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils.cpp">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks.cpp">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
+    <ClCompile Include="NoVideocardMsg.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="LogFile.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="Patcher.cpp">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
+    <ClCompile Include="NavMapGen.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryStreamImpl.cpp">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
+    <ClCompile Include="ShadersHack.cpp">
+      <Filter>Файлы исходного кода\patches\Arktika1</Filter>
+    </ClCompile>
+    <ClCompile Include="UpgradesHack.cpp">
+      <Filter>Файлы исходного кода\patches\Arktika1</Filter>
+    </ClCompile>
+    <ClCompile Include="WeaponHack.cpp">
+      <Filter>Файлы исходного кода\patches\Arktika1</Filter>
+    </ClCompile>
+    <ClCompile Include="MenuHack.cpp">
+      <Filter>Файлы исходного кода\patches\Arktika1</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -101,8 +173,70 @@
     <ClInclude Include="uconsole.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
-    <ClInclude Include="iwriter.h">
+    <ClInclude Include="Patcher.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
+    <ClInclude Include="NoIntro.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="BadQuitReset.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="ConsoleUnlocker.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="AllowDDS.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="ContentUnlocker.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="RestoreCommands.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="Unlock3rdPerson.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="QuickSave.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="Fly.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils.h">
+      <Filter>Заголовочные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="Hooks.h">
+      <Filter>Заголовочные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="NoVideocardMsg.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="LogFile.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="NavMapGen.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryStreamImpl.h">
+      <Filter>Заголовочные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="ShadersHack.h">
+      <Filter>Заголовочные файлы\patches\Arktika1</Filter>
+    </ClInclude>
+    <ClInclude Include="UpgradesHack.h">
+      <Filter>Заголовочные файлы\patches\Arktika1</Filter>
+    </ClInclude>
+    <ClInclude Include="WeaponHack.h">
+      <Filter>Заголовочные файлы\patches\Arktika1</Filter>
+    </ClInclude>
+    <ClInclude Include="MenuHack.h">
+      <Filter>Заголовочные файлы\patches\Arktika1</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="ArktikaWalkingHack.asm">
+      <Filter>Файлы исходного кода</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

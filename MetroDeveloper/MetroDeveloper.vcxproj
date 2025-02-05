@@ -22,7 +22,7 @@
     <ProjectGuid>{3728A65A-37F2-4394-90E8-90DD99CD45B9}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>MetroDeveloper</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -40,7 +40,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -52,6 +52,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -146,6 +147,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AllowDDS.cpp" />
+    <ClCompile Include="BadQuitReset.cpp" />
+    <ClCompile Include="ConsoleUnlocker.cpp" />
+    <ClCompile Include="ContentUnlocker.cpp" />
     <ClCompile Include="dllmain.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -160,6 +165,11 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Fly.cpp" />
+    <ClCompile Include="Hooks.cpp" />
+    <ClCompile Include="LogFile.cpp" />
+    <ClCompile Include="MemoryStreamImpl.cpp" />
+    <ClCompile Include="MenuHack.cpp" />
     <ClCompile Include="mfile.c" />
     <ClCompile Include="MinHook\buffer.c" />
     <ClCompile Include="MinHook\hook.c" />
@@ -167,13 +177,32 @@
     <ClCompile Include="MinHook\hde\hde32.c" />
     <ClCompile Include="MinHook\hde\hde64.c" />
     <ClCompile Include="model.cpp" />
+    <ClCompile Include="NavMapGen.cpp" />
+    <ClCompile Include="NoIntro.cpp" />
+    <ClCompile Include="NoVideocardMsg.cpp" />
+    <ClCompile Include="Patcher.cpp" />
+    <ClCompile Include="QuickSave.cpp" />
+    <ClCompile Include="RestoreCommands.cpp" />
+    <ClCompile Include="ShadersHack.cpp" />
     <ClCompile Include="tok_file.c" />
     <ClCompile Include="tok_test.cpp" />
     <ClCompile Include="uconsole.cpp" />
+    <ClCompile Include="Unlock3rdPerson.cpp" />
+    <ClCompile Include="UpgradesHack.cpp" />
+    <ClCompile Include="Utils.cpp" />
+    <ClCompile Include="WeaponHack.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="iwriter.h" />
+    <ClInclude Include="AllowDDS.h" />
+    <ClInclude Include="BadQuitReset.h" />
+    <ClInclude Include="ConsoleUnlocker.h" />
+    <ClInclude Include="ContentUnlocker.h" />
+    <ClInclude Include="Fly.h" />
+    <ClInclude Include="Hooks.h" />
     <ClInclude Include="i_pathengine.h" />
+    <ClInclude Include="LogFile.h" />
+    <ClInclude Include="MemoryStreamImpl.h" />
+    <ClInclude Include="MenuHack.h" />
     <ClInclude Include="mfile.h" />
     <ClInclude Include="MinHook.h" />
     <ClInclude Include="MinHook\trampoline.h" />
@@ -184,10 +213,28 @@
     <ClInclude Include="MinHook\hde\table32.h" />
     <ClInclude Include="MinHook\hde\table64.h" />
     <ClInclude Include="model.hpp" />
+    <ClInclude Include="NavMapGen.h" />
+    <ClInclude Include="NoIntro.h" />
+    <ClInclude Include="NoVideocardMsg.h" />
+    <ClInclude Include="Patcher.h" />
+    <ClInclude Include="QuickSave.h" />
+    <ClInclude Include="RestoreCommands.h" />
+    <ClInclude Include="ShadersHack.h" />
     <ClInclude Include="tok_file.h" />
     <ClInclude Include="uconsole.h" />
+    <ClInclude Include="Unlock3rdPerson.h" />
+    <ClInclude Include="UpgradesHack.h" />
+    <ClInclude Include="Utils.h" />
+    <ClInclude Include="WeaponHack.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="ArktikaWalkingHack.asm">
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </MASM>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
   </ImportGroup>
 </Project>
