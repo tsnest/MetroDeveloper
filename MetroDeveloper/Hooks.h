@@ -11,6 +11,10 @@ public:
 	static void cmd_register_commands_Hook();
 	static void __fastcall slog_Hook(const char* s);
 
+	// test
+	static void __fastcall rtexture__init_handle_Hook(void* _this, void* fname);
+	static void __fastcall textures__server__get_handle_vrezka_Hook();
+
 #ifndef _WIN64
 	static void __fastcall clevel_r_on_key_press_Hook2033(void* _this, void* _unused, int action, int key, int state); // 2033 orig
 	static void __fastcall clevel_r_on_key_press_Hook(void* _this, void* _unused, int action, int key, int state, int resending); // LL orig

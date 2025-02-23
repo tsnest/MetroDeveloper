@@ -3,7 +3,11 @@
 
 typedef void(__fastcall*** _track)(void*);
 #ifdef _WIN64
-typedef _track(__fastcall* _cflycam_cflycam)(void* _this, const char* name);
+typedef void (__fastcall* _force_transform)(void* _this, float* m, int on_load);
+typedef void* (__fastcall* _entities_core__ser_lock)(void* _this, const char* dbg_info);
+_entities_core__ser_lock entities_core__ser_lock = nullptr;
+
+typedef _track(__fastcall* _cflycam_cflycam)(void* _this, const char* name, float slide, float scale);
 typedef LPCRITICAL_SECTION(__fastcall* _memory)();
 typedef void* (__fastcall* _tlsf_memalign)(DWORD64 tlsf, DWORD align, DWORD size);
 typedef void* (__fastcall* _camera_manager_play_track_redux)(DWORD64 _this, void* t, float accrue, float start_pos, void* unused3, void* e, void* unused4, void* unused5, void* owner);
@@ -115,6 +119,11 @@ Fly::Fly()
 			camera_manager_play_track = (void*)FindPatternInEXE(
 				(BYTE*)"\x48\x89\x6C\x24\x00\x48\x89\x54\x24\x00\x57\x48\x83\xEC\x50\x48\x8B\x02\x48\x8B\xF9\x48\x89\x5C\x24\x00\x48\x8B\xDA\x48\x8B\x94\x24\x00\x00\x00\x00\x48\x8B\xCB\x0F\x29\x74\x24\x00\x0F\x28\xF2\x0F\x29\x7C\x24",
 				"xxxx?xxxx?xxxxxxxxxxxxxxx?xxxxxxx????xxxxxxx?xxxxxxx");
+
+			// 48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 20 48 8B 1D ? ? ? ? 48 8B F2 48 C7 C7 ? ? ? ? 33 C0 F0 0F B1 BB ? ? ? ? 74 5D 8B 83 ? ? ? ? 85 C0 74 47 8B 0D ? ? ? ? 03 0D ? ? ? ? 74 0E 48 8D 0D ? ? ? ? E8 ? ? ? ? EB DA
+			entities_core__ser_lock = (_entities_core__ser_lock)FindPatternInEXE(
+				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x20\x48\x8B\x1D\x00\x00\x00\x00\x48\x8B\xF2\x48\xC7\xC7\x00\x00\x00\x00\x33\xC0\xF0\x0F\xB1\xBB\x00\x00\x00\x00\x74\x5D\x8B\x83\x00\x00\x00\x00\x85\xC0\x74\x47\x8B\x0D\x00\x00\x00\x00\x03\x0D\x00\x00\x00\x00\x74\x0E\x48\x8D\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xEB\xDA",
+				"xxxx?xxxx?xxxx?xxxxxxxxx????xxxxxx????xxxxxx????xxxx????xxxxxx????xx????xxxxx????x????xx");
 		}
 
 #else
@@ -159,7 +168,7 @@ void Fly::clevel_r_on_key_press(int action, int key, int state, int resending)
 		LeaveCriticalSection(mem);
 
 		// TODO: ƒл€ исхода по идее нужно ещЄ 2 float параметра
-		_track track = cflycam_cflycam(cflycam_this, "1");
+		_track track = cflycam_cflycam(cflycam_this, "1", 0.2f, 0.125f);
 
 		if (g_game == NULL)
 		{
@@ -189,7 +198,7 @@ void Fly::clevel_r_on_key_press(int action, int key, int state, int resending)
 					"xxx????xxx????xxx????xxxx?xxxxx????xxxxxxx?xxxxxxxxxx????x????xxx????xxxxx????xxxx");
 			}
 
-			// вычисн€ем адрес и получаем g_game
+			// вычисл€ем адрес и получаем g_game
 			g_game = *(DWORD64*)(mov + 7 + *(DWORD*)(mov + 3));
 		}
 		DWORD64 _cameras = *(DWORD64*)(g_game + 0x10);
@@ -251,3 +260,53 @@ void Fly::clevel_r_on_key_press(int action, int key, int state, int resending)
 #endif
 	}
 }
+
+#ifdef _WIN64
+// восстанавливаем выпиленный в релизе исхода cflycam::r_on_key_press
+void __fastcall Fly::exodus_cflycam_r_on_key_press(void* _cflycam, int action, int key, int state, int resending)
+{
+	switch (key) {
+	case 1: // ESC
+		*(DWORD*)((DWORD64)_cflycam - 0x4) |= 0x40000000u; // выход из режима полЄта
+		break;
+	case 28: { // ENTER
+		// телепорт
+		float _speed = *(float*)((DWORD64)_cflycam + 0x100);
+		
+		DWORD64 _startup_entity = *(DWORD64*)(Utils::GetGLevel() + 0x20);
+		DWORD64 _control_entity = *(DWORD64*)(Utils::GetGLevel() + 0x28);
+		DWORD64 _view_entity = *(DWORD64*)(Utils::GetGLevel() + 0x30);
+		
+		if (Utils::GetTimeGlobalMS() >= LODWORD(_speed)  && _control_entity)
+		{
+			DWORD64 entities = Utils::GetGEntities();
+			entities_core__ser_lock((void*)entities, "cflycam::r_on_key_press");
+
+			_force_transform force_transform = *(_force_transform*) ((*((DWORD64*)_control_entity)) + 0x1E8);
+			force_transform((void*)_control_entity, (float*)((DWORD64)_cflycam + 0x20), 0);
+
+			*(DWORD*)((DWORD64)_cflycam - 0x4) |= 0x40000000u; // выход из режима полЄта
+
+			// аналог entities_core::ser_unlock
+			volatile long* _ser_block = (volatile long*)(entities + 0xE0);
+			while (_InterlockedCompareExchange(_ser_block, 0, -1) != -1) {}
+		}
+		break;
+	}
+	case 41: { // TILDE
+		if (Utils::GetBool("other", "unlock_dev_console", false)) {
+			uconsole_server_exodus** console = (uconsole_server_exodus**)Utils::GetConsole();
+			(*console)->show(console);
+		}
+		break;
+	}
+	case 197: { // PAUSE
+		uconsole_server_exodus** console = (uconsole_server_exodus**)Utils::GetConsole();
+		(*console)->execute_deferred(console, "pause");
+		break;
+	}
+	default:
+		return;
+	}
+}
+#endif

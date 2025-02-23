@@ -36,7 +36,7 @@ typedef void* (__fastcall* _vfs_ropen_package)(void* result, void* package, cons
 typedef void* (__fastcall* _vfs_ropen_packageExodus)(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size, void* _unknown);
 typedef void(__fastcall* _vfs_rbuffered_package)(void* package, const char* fn, void* cb, const int force_raw);
 typedef void(__fastcall* _vfs_rbuffered_packageExodus)(const char* fn, void* cb);
-typedef void* (__fastcall* _rblock_init)(const char* fn, unsigned int* f_offset, unsigned int* f_size, unsigned int not_packaged);
+typedef void* (__fastcall* _rblock_init)(const char* fn, unsigned int* f_offset, unsigned int* f_size, unsigned int* not_packaged);
 typedef bool(__fastcall* _vfs_package_registry_level_downloaded)(void* _this, const char* map_name);
 
 void* vfs_ropen_package_Orig = nullptr;
@@ -47,6 +47,25 @@ _vfs_package_registry_level_downloaded vfs_package_registry_level_downloaded_Ori
 extern "C" void walking_fix_attempt();
 void* cplayer_process_state_end_Orig = nullptr;
 #endif
+
+extern "C" void* load_navmap_Orig = nullptr;
+extern "C" void load_navmap_hack();
+
+typedef void (*_rlog)(const char* format, ...);
+extern "C" _rlog rlog = nullptr;
+
+typedef void* (*_gres_texture)();
+_gres_texture gres_texture = nullptr;
+
+typedef void* (__fastcall* _textures__server__get_handle)(void* gres, void* fname);
+_textures__server__get_handle textures__server__get_handle = nullptr;
+
+typedef void* (__fastcall* _textures__server__get_handle_vrezka)();
+_textures__server__get_handle_vrezka textures__server__get_handle_vrezka_Orig = nullptr;
+
+typedef void (__fastcall* _rtexture__init_handle)(void* _this, void* fname);
+extern "C" _rtexture__init_handle initHandle_Orig = nullptr;
+extern "C" void initHandle_hack();
 
 Hooks::Hooks()
 {
@@ -319,6 +338,92 @@ Hooks::Hooks()
 
 				SetHook("walking_fix_attempt", cplayer_process_state_end_Address, (LPVOID)&walking_fix_attempt, reinterpret_cast<LPVOID*>(&cplayer_process_state_end_Orig));
 			}
+
+			// TEEEEEEEEEEEEEEEEEST!!!!!!!!!!
+			// 4C 8D 44 24 ? 48 8D 54 24 ? E8 ? ? ? ? 48 89 44 24 ? 39 74 24 5C 74 0F 48 85 C0 74 0A 48 8D 4C 24 ? E8 ? ? ? ? 48 85 DB 74 04 F0 FF 4B 08 - Arktika
+			//LPVOID load_navmap_Address = (LPVOID)FindPatternInEXE(
+			//	(BYTE*)"\x4C\x8D\x44\x24\x00\x48\x8D\x54\x24\x00\xE8\x00\x00\x00\x00\x48\x89\x44\x24\x00\x39\x74\x24\x5C\x74\x0F\x48\x85\xC0\x74\x0A\x48\x8D\x4C\x24\x00\xE8\x00\x00\x00\x00\x48\x85\xDB\x74\x04\xF0\xFF\x4B\x08",
+			//	"xxxx?xxxx?x????xxxx?xxxxxxxxxxxxxxx?x????xxxxxxxxx");
+
+			// 44 8B 4C 24 ? 4C 8D 44 24 ? 48 8D 54 24 ? E8 ? ? ? ? 48 89 44 24 ? 39 74 24 5C 74 0F 48 85 C0 74 0A 48 8D 4C 24 ? E8 ? ? ? ? 48 85 DB 74 04 F0 FF 4B 08 - Arktika
+			//LPVOID load_navmap_Address = (LPVOID)FindPatternInEXE(
+			//	(BYTE*)"\x44\x8B\x4C\x24\x00\x4C\x8D\x44\x24\x00\x48\x8D\x54\x24\x00\xE8\x00\x00\x00\x00\x48\x89\x44\x24\x00\x39\x74\x24\x5C\x74\x0F\x48\x85\xC0\x74\x0A\x48\x8D\x4C\x24\x00\xE8\x00\x00\x00\x00\x48\x85\xDB\x74\x04\xF0\xFF\x4B\x08",
+			//	"xxxx?xxxx?xxxx?x????xxxx?xxxxxxxxxxxxxxx?x????xxxxxxxxx");
+
+			// e8 ? ? ? ? 4c 8d 3d ? ? ? ? 48 8b c8 - Arktika
+			LPVOID load_navmap_Address = (LPVOID)FindPatternInEXE(
+				(BYTE*)"\xe8\x00\x00\x00\x00\x4c\x8d\x3d\x00\x00\x00\x00\x48\x8b\xc8",
+				"x????xxx????xxx");
+
+			//SetHook("load_navmap_hack", load_navmap_Address, (LPVOID)&load_navmap_hack, reinterpret_cast<LPVOID*>(&load_navmap_Orig));
+
+
+
+
+			// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 81 EC ? ? ? ? 33 ED 49 8B F8 89 2A 48 8B F2 41 89 28 48 8B D9 45 85 C9 0F 84 ? ? ? ? 48 8B D1 48 8D 4C 24 ? E8 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? E8 - Arktika
+			/*LPVOID rblock_init_Address = (LPVOID)FindPatternInEXE(
+				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x57\x48\x81\xEC\x00\x00\x00\x00\x33\xED\x49\x8B\xF8\x89\x2A\x48\x8B\xF2\x41\x89\x28\x48\x8B\xD9\x45\x85\xC9\x0F\x84\x00\x00\x00\x00\x48\x8B\xD1\x48\x8D\x4C\x24\x00\xE8\x00\x00\x00\x00\x48\x85\xC0\x0F\x84\x00\x00\x00\x00\xE8",
+				"xxxx?xxxx?xxxx?xxxx????xxxxxxxxxxxxxxxxxxxxx????xxxxxxx?x????xxxxx????x");
+
+			SetHook("rblock_init", rblock_init_Address, (LPVOID)&rblock_init_Hook, reinterpret_cast<LPVOID*>(&rblock_init_Orig));*/
+		}
+
+		if (Utils::GetGame() == GAME::REDUX) {
+			// 48 8B C4 48 89 48 08 48 89 50 10 4C 89 40 18 4C 89 48 20 48 81 EC ? ? ? ? 4C 8B C1 4C 8D 48 10 48 8D 4C 24 ? BA ? ? ? ? FF 15 ? ? ? ? 33 C9 C6 84 24 ? ? ? ? ? 48 89 4C 24 ? 85 C0 0F 89 ? ? ? ? 48 8B 94 24 ? ? ? ? 48 89 4C 24
+			rlog = (_rlog)FindPatternInEXE(
+				(BYTE*)"\x48\x8B\xC4\x48\x89\x48\x08\x48\x89\x50\x10\x4C\x89\x40\x18\x4C\x89\x48\x20\x48\x81\xEC\x00\x00\x00\x00\x4C\x8B\xC1\x4C\x8D\x48\x10\x48\x8D\x4C\x24\x00\xBA\x00\x00\x00\x00\xFF\x15\x00\x00\x00\x00\x33\xC9\xC6\x84\x24\x00\x00\x00\x00\x00\x48\x89\x4C\x24\x00\x85\xC0\x0F\x89\x00\x00\x00\x00\x48\x8B\x94\x24\x00\x00\x00\x00\x48\x89\x4C\x24",
+				"xxxxxxxxxxxxxxxxxxxxxx????xxxxxxxxxxx?x????xx????xxxxx?????xxxx?xxxx????xxxx????xxxx");
+
+			// 44 8B 4C 24 ? 4C 8D 44 24 ? 48 8D 54 24 ? E8 ? ? ? ? 8B 4C 24 5C 48 89 44 24 ? 85 C9 74 13 48 85 C0 74 0E 48 8D 4C 24 ? E8 ? ? ? ? 8B 4C 24 5C 2B 4C 24 50 85 C9 0F 8E ? ? ? ? 48 8D 15 ? ? ? ? 89 75 60 48 85 D2 75 1F 48 8B DE - Redux
+			LPVOID load_navmap_Address = (LPVOID)FindPatternInEXE(
+				(BYTE*)"\x44\x8B\x4C\x24\x00\x4C\x8D\x44\x24\x00\x48\x8D\x54\x24\x00\xE8\x00\x00\x00\x00\x8B\x4C\x24\x5C\x48\x89\x44\x24\x00\x85\xC9\x74\x13\x48\x85\xC0\x74\x0E\x48\x8D\x4C\x24\x00\xE8\x00\x00\x00\x00\x8B\x4C\x24\x5C\x2B\x4C\x24\x50\x85\xC9\x0F\x8E\x00\x00\x00\x00\x48\x8D\x15\x00\x00\x00\x00\x89\x75\x60\x48\x85\xD2\x75\x1F\x48\x8B\xDE",
+				"xxxx?xxxx?xxxx?x????xxxxxxxx?xxxxxxxxxxxxx?x????xxxxxxxxxxxx????xxx????xxxxxxxxxxx");
+
+			//SetHook("load_navmap_hack", load_navmap_Address, (LPVOID)&load_navmap_hack, reinterpret_cast<LPVOID*>(&load_navmap_Orig));
+		}
+
+		if (Utils::GetGame() == GAME::REDUX) {
+			// 48 8B 57 18 33 ED - Redux
+			// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 41 56 41 57 48 83 EC 20 4C 8B FA 48 8B F9 E8 ? ? ? ? 48 8B C8 49 8B D7 E8 ? ? ? ? 48 8B 18 48 85 DB 74 04 F0 FF 43 14
+			LPVOID initHandle_Address = (LPVOID)FindPatternInEXE(
+				//(BYTE*)"\x48\x8B\x57\x18\x33\xED",
+				//"xxxxxx");
+				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x57\x41\x56\x41\x57\x48\x83\xEC\x20\x4C\x8B\xFA\x48\x8B\xF9\xE8\x00\x00\x00\x00\x48\x8B\xC8\x49\x8B\xD7\xE8\x00\x00\x00\x00\x48\x8B\x18\x48\x85\xDB\x74\x04\xF0\xFF\x43\x14",
+				"xxxx?xxxx?xxxx?xxxxxxxxxxxxxxxx????xxxxxxx????xxxxxxxxxxxx");
+
+			// 48 83 EC 28 8B 05 ? ? ? ? A8 01 0F 85 ? ? ? ? 83 C8 01 48 8D 0D ? ? ? ? 33 D2 89 05 ? ? ? ? E8 ? ? ? ? 48 8D 0D ? ? ? ? B2 01 E8 ? ? ? ? 33 C9 48 89 0D ? ? ? ? 89 0D ? ? ? ? 48 89 0D ? ? ? ? 0F 57 C0 0F 57 C9 66 0F 7F 05
+			gres_texture = (_gres_texture)FindPatternInEXE(
+				(BYTE*)"\x48\x83\xEC\x28\x8B\x05\x00\x00\x00\x00\xA8\x01\x0F\x85\x00\x00\x00\x00\x83\xC8\x01\x48\x8D\x0D\x00\x00\x00\x00\x33\xD2\x89\x05\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x8D\x0D\x00\x00\x00\x00\xB2\x01\xE8\x00\x00\x00\x00\x33\xC9\x48\x89\x0D\x00\x00\x00\x00\x89\x0D\x00\x00\x00\x00\x48\x89\x0D\x00\x00\x00\x00\x0F\x57\xC0\x0F\x57\xC9\x66\x0F\x7F\x05",
+				"xxxxxx????xxxx????xxxxxx????xxxx????x????xxx????xxx????xxxxx????xx????xxx????xxxxxxxxxx");
+
+			// 40 53 48 83 EC 20 E8 ? ? ? ? 48 8B 18 48 85 DB 74 06 0F B7 4B 0E EB 02 33 C9 48 85 DB 74 65 66 39 4B 0E 74 4C 48 8D 53 14 48 85 D2 75 04 33 DB EB 48
+			textures__server__get_handle = (_textures__server__get_handle)FindPatternInEXE(
+				(BYTE*)"\x40\x53\x48\x83\xEC\x20\xE8\x00\x00\x00\x00\x48\x8B\x18\x48\x85\xDB\x74\x06\x0F\xB7\x4B\x0E\xEB\x02\x33\xC9\x48\x85\xDB\x74\x65\x66\x39\x4B\x0E\x74\x4C\x48\x8D\x53\x14\x48\x85\xD2\x75\x04\x33\xDB\xEB\x48",
+				"xxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+
+			// 4C 8B 4C C8
+			LPVOID textures__server__get_handle_vrezka = (LPVOID)FindPatternInEXE(
+				(BYTE*)"\x4C\x8B\x4C\xC8",
+				"xxxx");
+
+			//SetHook("CantFindTextureMsg", initHandle_Address, (LPVOID)&initHandle_hack, reinterpret_cast<LPVOID*>(&initHandle_Orig));
+
+			//SetHook("CantFindTextureMsg", initHandle_Address, (LPVOID)&Hooks::rtexture__init_handle_Hook, reinterpret_cast<LPVOID*>(&initHandle_Orig));
+
+			//SetHook("CantFindTextureMsg", textures__server__get_handle_vrezka, (LPVOID)&Hooks::textures__server__get_handle_vrezka_Hook, reinterpret_cast<LPVOID*>(&textures__server__get_handle_vrezka_Orig));
+		}
+
+		///////////////////////////////////////////////////////////////
+
+		if (g_fly && Utils::GetGame() == GAME::EXODUS) {
+			// ¬осстановление cflycam::r_on_key_press выпиленного в исходе
+			// C2 00 00 CC CC CC CC CC CC CC CC CC CC CC CC CC 48 89 5C 24 ? 57 48 83 EC 20 48 8B 41 10 - Exodus
+			LPVOID cflycam_r_on_key_press_Address = (LPVOID)FindPatternInEXE(
+				(BYTE*)"\xC2\x00\x00\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\x48\x89\x5C\x24\x00\x57\x48\x83\xEC\x20\x48\x8B\x41\x10",
+				"xxxxxxxxxxxxxxxxxxxx?xxxxxxxxx");
+
+			void* cflycam_r_on_key_press_Orig = nullptr;
+			SetHook("cflycam_r_on_key_press", cflycam_r_on_key_press_Address, (LPVOID)&Fly::exodus_cflycam_r_on_key_press, reinterpret_cast<LPVOID*>(&cflycam_r_on_key_press_Orig));
 		}
 
 		///////////////////////////////////////////////////////////////
@@ -327,6 +432,40 @@ Hooks::Hooks()
 		MessageBox(NULL, "MinHook not initialized!", "MinHook", MB_OK | MB_ICONERROR);
 	}
 }
+
+#include "stdio.h"
+
+void __fastcall Hooks::textures__server__get_handle_vrezka_Hook()
+{
+	//Beep(1000, 200);
+	textures__server__get_handle_vrezka_Orig();
+}
+
+void __fastcall Hooks::rtexture__init_handle_Hook(void* _this, void* fname)
+{
+	void* g = gres_texture();
+	void* object = textures__server__get_handle(g, fname);
+
+	if (object) {
+		void* _p = *(void**)fname;
+		const char* value = (const char*)((__int64)_p + 20);
+		//Beep(1000, 200);
+		rlog("!!Can't find texture: %s", value);
+	}
+
+	//printf("test: %s\n", value);
+	initHandle_Orig(_this, fname);
+}
+
+/*void* __fastcall Hooks::rblock_init_Hook(const char* fn, unsigned int* f_offset, unsigned int* f_size, unsigned int* not_packaged)
+{
+	//Beep(1000, 200);
+	if (not_packaged) {
+		Beep(1000, 200);
+		//MessageBox(NULL, fn, NULL, MB_OK);
+	}
+	return rblock_init_Orig(fn, f_offset, f_size, not_packaged);
+}*/
 
 void Hooks::SetHook(char* hookName, LPVOID pTarget, LPVOID pDetour, LPVOID *ppOriginal)
 {

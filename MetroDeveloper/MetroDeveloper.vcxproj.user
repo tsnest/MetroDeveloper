@@ -8,5 +8,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommand>D:\pizdets\Arktika.1\arktika1.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>-build_key m3 -map oculus\pc_01_citadel</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>D:\pizdets\Arktika.1</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
 </Project>

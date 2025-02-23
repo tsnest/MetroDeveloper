@@ -93,7 +93,7 @@ void Unlock3rdPerson::clevel_r_on_key_press(void* _this, int action, int key, in
 			control_entity = *((void**)((char*)_this + 0x30));
 			view_entity = *((void**)((char*)_this + 0x38));
 
-			base_npc_cameras = *((void**)((char*)view_entity + 0x640));
+			base_npc_cameras = *((void**)((char*)control_entity + 0x640));
 
 			if (key == 59) // F1
 				base_npc_cameras_cam_set(base_npc_cameras, enc_first_eye, 1.f, 1);
@@ -102,11 +102,11 @@ void Unlock3rdPerson::clevel_r_on_key_press(void* _this, int action, int key, in
 			if (key == 61) // F3
 				base_npc_cameras_cam_set(base_npc_cameras, enc_free_look, 1.f, 1);
 		} else if (Utils::GetGame() == GAME::ARKTIKA || Utils::GetGame() == GAME::EXODUS) {
-			startup_entity = *((void**)((char*)_this + 0x24));
-			control_entity = *((void**)((char*)_this + 0x26));
+			startup_entity = *((void**)((char*)_this + 0x18));
+			control_entity = *((void**)((char*)_this + 0x20));
 			view_entity = *((void**)((char*)_this + 0x28));
 
-			base_npc_cameras = (Utils::GetGame() == GAME::ARKTIKA ? *((void**)((char*)view_entity + 0x7C8)) : *((void**)((char*)view_entity + 0x928)));
+			base_npc_cameras = (Utils::GetGame() == GAME::ARKTIKA ? *((void**)((char*)control_entity + 0x7C8)) : *((void**)((char*)control_entity + 0x928)));
 
 			if (key == 59) // F1
 				base_npc_cameras_cam_set(base_npc_cameras, bit_enc_first_eye, 1.f, 1);
@@ -124,7 +124,7 @@ void Unlock3rdPerson::clevel_r_on_key_press(void* _this, int action, int key, in
 			void* control_entity = *((void**)((char*)_this + 0x1C));
 			void* view_entity = *((void**)((char*)_this + 0x20));
 
-			void* base_npc_cameras = *((void**)((char*)view_entity + 0x3A4));
+			void* base_npc_cameras = *((void**)((char*)control_entity + 0x3A4));
 
 			if (key == 59) // F1
 				base_npc_cameras_cam_set(base_npc_cameras, enc_first_eye, 1.f, 1);
@@ -139,7 +139,7 @@ void Unlock3rdPerson::clevel_r_on_key_press(void* _this, int action, int key, in
 			void* control_entity = *((void**)((char*)_this + 0x10));
 			void* view_entity = *((void**)((char*)_this + 0x14));
 
-			void* base_npc_cameras = *((void**)((char*)view_entity + 0x348));
+			void* base_npc_cameras = *((void**)((char*)control_entity + 0x348));
 
 			if (key == 59) // F1
 			{

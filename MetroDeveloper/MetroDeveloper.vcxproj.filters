@@ -238,5 +238,11 @@
     <MASM Include="ArktikaWalkingHack.asm">
       <Filter>Файлы исходного кода</Filter>
     </MASM>
+    <MASM Include="LoadNavMapHack.asm">
+      <Filter>Файлы исходного кода</Filter>
+    </MASM>
+    <MASM Include="CantFindTextureLog.asm">
+      <Filter>Файлы исходного кода</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

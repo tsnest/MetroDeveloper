@@ -46,7 +46,7 @@ void* __fastcall ContentUnlocker::vfs_ropen_package(void* result, void* package,
 {
 	//printf("%s\n", fn);
 
-	if (GetFileAttributes(fn) != 0xFFFFFFFF)
+	if (Utils::FileExists(fn))
 	{
 		return Utils::GetGame() == GAME::EXODUS ? ((_vfs_ropen_osExodus)vfs_ropen_os)(result, fn, NULL, NULL) : ((_vfs_ropen_os)vfs_ropen_os)(result, fn);
 	} else {
@@ -58,7 +58,7 @@ void __fastcall ContentUnlocker::vfs_rbuffered_package(const char* fn, fastdeleg
 {
 	//printf("%s\n", fn);
 
-	if (GetFileAttributes(fn) != 0xFFFFFFFF)
+	if (Utils::FileExists(fn))
 	{
 		size_t size;
 		void* buffer = malloc(0x30000);
@@ -99,7 +99,7 @@ void __cdecl ContentUnlocker::vfs_rbuffered(const char* fn, void* a1, _method me
 {
 	//printf("%s\n", fn);
 
-	if (GetFileAttributes(fn) != 0xFFFFFFFF)
+	if (Utils::FileExists(fn))
 	{
 		size_t size;
 
