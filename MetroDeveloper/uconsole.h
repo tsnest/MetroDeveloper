@@ -15,12 +15,15 @@ struct uconsole_command_new {
 	void* __vftable;
 
 	const char* _name;
-	char _unk1 : 1; // Arktika
+	char _unk1 : 1;
+	char _unk2 : 1;
 	char _enabled : 1;
-	char _lower_case_args : 1;
-	char _empty_args_handled : 1;
-	char _save : 1;
-	char _option : 1;
+	char _unk4 : 1;
+	char _unk5 : 1;
+	char _unk6 : 1;
+	char _unk7 : 1;
+	char _unk8 : 1;
+	
 };
 
 typedef void(__thiscall* _command_add) (void* _console, void* C);
@@ -89,7 +92,7 @@ struct cmd_mask_struct_old : public uconsole_command_old {
 		_enabled            = 1;
 		_lower_case_args    = 1;
 		_empty_args_handled = 0;
-		_save               = 1;
+		_save				= 1;
 		_option             = 0;
 		
 		value    = flags_ptr;
@@ -107,17 +110,25 @@ struct cmd_mask_struct_new : public uconsole_command_new {
 
 	void construct(void* vtable_ptr, const char* name, unsigned* flags_ptr, unsigned flags_mask)
 	{
-		__vftable = vtable_ptr;
-		_name = name;
-		_enabled = 1;
-		_lower_case_args = 1;
-		_empty_args_handled = 0;
-		_save = 1;
-		_option = 0;
+		__vftable	= vtable_ptr;
+		_name		= name;
 
-		value = flags_ptr;
-		mask = flags_mask;
-		mask_on = flags_mask;
+		// в арктике и исходе порядок поменялся, и я не знаю точных значений тех или иных битов
+		// для сохранения команды в user.cfg, _unk1 должен быть 1 и _unk2 должен быть 0
+		_unk1		= 1;
+		_unk2		= 0;
+		_enabled	= 1;
+		_unk4		= 1;
+		_unk5		= 0;
+		_unk6		= 0;
+
+		// _unk7 и _unk8 предположительно не используются
+		_unk7		= 0;
+		_unk8		= 0;
+
+		value	 = flags_ptr;
+		mask	 = flags_mask;
+		mask_on	 = flags_mask;
 		mask_off = flags_mask;
 	}
 };
