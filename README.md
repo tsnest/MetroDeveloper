@@ -1,3 +1,5 @@
+[RU]:
+
 Данный проект частично восстанавливает некоторые возможности разработчиков в движке 4A Engine.
 
 Возможности:
@@ -13,3 +15,21 @@
 9. Режим полёта и телепорта
 10. Клаво-мышные патчи для Arktika.1
 11. Генерация nav_map.pe или nav_map.bin
+
+[EN]:
+
+This project partially restores some of the developer features in the 4A Engine.
+
+Features:
+
+1. Disabling the display of a message about a previous failed game launch.
+2. Disabling intro clips at game startup.
+3. Unlocking the developer console.
+4. Partial unlocking of reading resources from the content folder.
+5. Ability to use dds textures in last light and newer games.
+6. Restoration of console commands (g_god, g_global_god, g_notarget, g_unlimitedammo, g_unlimitedfilters)
+7. Ability to enable third-person mode (this mode has bugs)
+8. Fast saves
+9. Flight and teleport mode
+10. Keyboard-mouse patches for Arktika.1
+11. Generating nav_map.pe or nav_map.bin
