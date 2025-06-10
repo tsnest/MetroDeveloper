@@ -17,6 +17,7 @@
 #include "Fly.h"
 #include "LogFile.h"
 #include "NavMapGen.h"
+#include "DisableFiltersCostMod.h"
 
 #ifdef _WIN64
 #include "MenuHack.h"
@@ -41,6 +42,7 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 		Patcher::mi = Patcher::GetModuleData(NULL);
 		Utils::Utils();
 
+		DisableFiltersCostMod::DisableFiltersCostMod();
 		BadQuitReset::BadQuitReset();
 		NoIntro::NoIntro();
 		AllowDDS::AllowDDS();

@@ -151,6 +151,7 @@
     <ClCompile Include="BadQuitReset.cpp" />
     <ClCompile Include="ConsoleUnlocker.cpp" />
     <ClCompile Include="ContentUnlocker.cpp" />
+    <ClCompile Include="DisableFiltersCostMod.cpp" />
     <ClCompile Include="dllmain.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -197,6 +198,7 @@
     <ClInclude Include="BadQuitReset.h" />
     <ClInclude Include="ConsoleUnlocker.h" />
     <ClInclude Include="ContentUnlocker.h" />
+    <ClInclude Include="DisableFiltersCostMod.h" />
     <ClInclude Include="Fly.h" />
     <ClInclude Include="Hooks.h" />
     <ClInclude Include="i_pathengine.h" />

@@ -132,6 +132,9 @@
     <ClCompile Include="MenuHack.cpp">
       <Filter>Файлы исходного кода\patches\Arktika1</Filter>
     </ClCompile>
+    <ClCompile Include="DisableFiltersCostMod.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="i_pathengine.h">
@@ -232,6 +235,9 @@
     </ClInclude>
     <ClInclude Include="MenuHack.h">
       <Filter>Заголовочные файлы\patches\Arktika1</Filter>
+    </ClInclude>
+    <ClInclude Include="DisableFiltersCostMod.h">
+      <Filter>Заголовочные файлы\patches</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
