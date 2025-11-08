@@ -15,6 +15,7 @@
 9. Режим полёта и телепорта
 10. Клаво-мышные патчи для Arktika.1
 11. Генерация nav_map.pe или nav_map.bin
+12. Отключение повышения цен на фильтры в redux
 
 [EN]:
 
@@ -33,3 +34,4 @@ Features:
 9. Flight and teleport mode
 10. Keyboard-mouse patches for Arktika.1
 11. Generating nav_map.pe or nav_map.bin
+12. Disabling price increases for filters in redux
