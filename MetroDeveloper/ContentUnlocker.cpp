@@ -37,12 +37,19 @@ ContentUnlocker::ContentUnlocker()
 		vfs_ropen_os = (_vfs_ropen_os)FindPatternInEXE(
 			(BYTE*)"\x48\x8B\xC4\x48\x89\x58\x10\x48\x89\x68\x18\x48\x89\x70\x20\x57\x41\x54\x41\x56\x48\x81\xEC\x00\x00\x00\x00\x45\x33\xE4\x48\x8B\xF9\x4C\x8B\xC2\x4C\x89\x60\x28\xBA\x00\x00\x00\x00\x4C\x89\x64\x24",
 			"xxxxxxxxxxxxxxxxxxxxxxx????xxxxxxxxxxxxxx????xxxx");
+
+		if (vfs_ropen_os == NULL) {
+			// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 41 54 41 56 48 81 EC ? ? ? ? 45 31 E4 - Exodus OLD
+			vfs_ropen_os = (_vfs_ropen_os)FindPatternInEXE(
+				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x57\x41\x54\x41\x56\x48\x81\xEC\x00\x00\x00\x00\x45\x31\xE4",
+				"xxxx?xxxx?xxxx?xxxxxxxx????xxx");
+		}
 	}
 #endif
 }
 
 #ifdef _WIN64
-void* __fastcall ContentUnlocker::vfs_ropen_package(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size)
+void* __fastcall ContentUnlocker::vfs_ropen_package(void* result, const char* fn)
 {
 	//printf("%s\n", fn);
 

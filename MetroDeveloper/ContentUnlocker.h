@@ -17,7 +17,7 @@ public:
 	ContentUnlocker();
 
 #ifdef _WIN64
-	static void* __fastcall vfs_ropen_package(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size);
+	static void* __fastcall vfs_ropen_package(void* result, const char* fn);
 	static void __fastcall vfs_rbuffered_package(const char* fn, fastdelegate* cb);
 	static bool __fastcall vfs_package_registry_level_downloaded(bool orig_ret, const char* map_name);
 #else

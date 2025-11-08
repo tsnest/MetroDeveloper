@@ -43,40 +43,50 @@ Utils::Utils()
 			(BYTE*)"\x8B\x05\x00\x00\x00\x00\x48\x05\x00\x00\x00\x00\x48\x3B\xC1\x48\x0F\x47\xC1\x89\x87\x00\x00\x00\x00\x48\x85\xD2\x74\x17\xF0\x0F\xC1\x72\x00\x83\xFE\x01\x75\x0D\x48\x8D\x8C\x24\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x8B\xC7\x48\x81\xC4",
 			"xx????xx????xxxxxxxxx????xxxxxxxxx?xxxxxxxxx????x????xxxxxx");
 
-		// вычисляем адрес и получаем engine.time._global_ms
-		engine_time__global_ms = (UINT*)(mov + 5 + *(DWORD*)(mov + 2));
+		// т.к. в версии без патчей, нам этот код без надобности, то и искать актуальные сигнатуры я пока не буду, т.к. мне лень :D
+		if (mov != NULL) {
+			// вычисляем адрес и получаем engine.time._global_ms
+			engine_time__global_ms = (UINT*)(mov + 5 + *(DWORD*)(mov + 2));
 
-		///////////////////////////////////////////////////////////////
+			///////////////////////////////////////////////////////////////
 
-		// читаем адрес инструкции mov rcx, [g_level]
-		// 48 8B 0D ? ? ? ? 48 8B 41 28 48 85 C0 74 20 48 8D 90 ? ? ? ? 48 8B 02 48 85 C0 75 14 48 8B CA E8 ? ? ? ? 48 8B 0D ? ? ? ? EB 03 48 8B C5 48 89 44 24 ? 48 85 C0 74 0B F0 FF 40 08 48 8B 0D
-		mov = FindPatternInEXE(
-			(BYTE*)"\x48\x8B\x0D\x00\x00\x00\x00\x48\x8B\x41\x28\x48\x85\xC0\x74\x20\x48\x8D\x90\x00\x00\x00\x00\x48\x8B\x02\x48\x85\xC0\x75\x14\x48\x8B\xCA\xE8\x00\x00\x00\x00\x48\x8B\x0D\x00\x00\x00\x00\xEB\x03\x48\x8B\xC5\x48\x89\x44\x24\x00\x48\x85\xC0\x74\x0B\xF0\xFF\x40\x08\x48\x8B\x0D",
-			"xxx????xxxxxxxxxxxx????xxxxxxxxxxxx????xxx????xxxxxxxxx?xxxxxxxxxxxx");
+			// читаем адрес инструкции mov rcx, [g_level]
+			// 48 8B 0D ? ? ? ? 48 8B 41 28 48 85 C0 74 20 48 8D 90 ? ? ? ? 48 8B 02 48 85 C0 75 14 48 8B CA E8 ? ? ? ? 48 8B 0D ? ? ? ? EB 03 48 8B C5 48 89 44 24 ? 48 85 C0 74 0B F0 FF 40 08 48 8B 0D
+			mov = FindPatternInEXE(
+				(BYTE*)"\x48\x8B\x0D\x00\x00\x00\x00\x48\x8B\x41\x28\x48\x85\xC0\x74\x20\x48\x8D\x90\x00\x00\x00\x00\x48\x8B\x02\x48\x85\xC0\x75\x14\x48\x8B\xCA\xE8\x00\x00\x00\x00\x48\x8B\x0D\x00\x00\x00\x00\xEB\x03\x48\x8B\xC5\x48\x89\x44\x24\x00\x48\x85\xC0\x74\x0B\xF0\xFF\x40\x08\x48\x8B\x0D",
+				"xxx????xxxxxxxxxxxx????xxxxxxxxxxxx????xxx????xxxxxxxxx?xxxxxxxxxxxx");
 
-		// вычисляем адрес и получаем g_level
-		g_level = (DWORD64*)(mov + 7 + *(DWORD*)(mov + 3));
+			// вычисляем адрес и получаем g_level
+			g_level = (DWORD64*)(mov + 7 + *(DWORD*)(mov + 3));
 
-		// читаем адрес инструкции mov rbx, [g_entities]
-		// 48 8B 1D ? ? ? ? 48 8B F2 48 C7 C7 ? ? ? ? 33 C0 F0 0F B1 BB ? ? ? ? 74 5D 8B 83 ? ? ? ? 85 C0 74 47 8B 0D ? ? ? ? 03 0D ? ? ? ? 74 0E 48 8D 0D ? ? ? ? E8 ? ? ? ? EB DA
-		mov = FindPatternInEXE(
-			(BYTE*)"\x48\x8B\x1D\x00\x00\x00\x00\x48\x8B\xF2\x48\xC7\xC7\x00\x00\x00\x00\x33\xC0\xF0\x0F\xB1\xBB\x00\x00\x00\x00\x74\x5D\x8B\x83\x00\x00\x00\x00\x85\xC0\x74\x47\x8B\x0D\x00\x00\x00\x00\x03\x0D\x00\x00\x00\x00\x74\x0E\x48\x8D\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xEB\xDA",
-			"xxx????xxxxxx????xxxxxx????xxxx????xxxxxx????xx????xxxxx????x????xx");
+			// читаем адрес инструкции mov rbx, [g_entities]
+			// 48 8B 1D ? ? ? ? 48 8B F2 48 C7 C7 ? ? ? ? 33 C0 F0 0F B1 BB ? ? ? ? 74 5D 8B 83 ? ? ? ? 85 C0 74 47 8B 0D ? ? ? ? 03 0D ? ? ? ? 74 0E 48 8D 0D ? ? ? ? E8 ? ? ? ? EB DA
+			mov = FindPatternInEXE(
+				(BYTE*)"\x48\x8B\x1D\x00\x00\x00\x00\x48\x8B\xF2\x48\xC7\xC7\x00\x00\x00\x00\x33\xC0\xF0\x0F\xB1\xBB\x00\x00\x00\x00\x74\x5D\x8B\x83\x00\x00\x00\x00\x85\xC0\x74\x47\x8B\x0D\x00\x00\x00\x00\x03\x0D\x00\x00\x00\x00\x74\x0E\x48\x8D\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xEB\xDA",
+				"xxx????xxxxxx????xxxxxx????xxxx????xxxxxx????xx????xxxxx????x????xx");
 
-		// вычисляем адрес и получаем g_entities
-		g_entities = (DWORD64*)(mov + 7 + *(DWORD*)(mov + 3));
+			// вычисляем адрес и получаем g_entities
+			g_entities = (DWORD64*)(mov + 7 + *(DWORD*)(mov + 3));
+		}
 	}
 
-	// 48 83 ec ? 48 8b 05 ? ? ? ? 48 85 c0 75 ? e8 ? ? ? ? 48 8b 05 - Redux STEAM
+	// 48 83 ec ? 48 8b 05 ? ? ? ? 48 85 c0 75 ? e8 ? ? ? ? 48 8b 05 - Redux STEAM and Arktika1 and Exodus
 	Utils::GetConsole = (_GetConsole)FindPatternInEXE(
 		(BYTE*)"\x48\x83\xec\x00\x48\x8b\x05\x00\x00\x00\x00\x48\x85\xc0\x75\x00\xe8\x00\x00\x00\x00\x48\x8b\x05",
 		"xxx?xxx????xxxx?x????xxx");
 
 	if (Utils::GetConsole == NULL) {
-		// 48 83 EC 38 48 8B 05 ? ? ? ? 48 85 C0 0F 85 ? ? ? ? 48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 - Redux EGS
+		// 48 83 EC 38 48 8B 05 ? ? ? ? 48 85 C0 0F 85 ? ? ? ? 48 89 5C 24 ? 48 89 - Redux EGS
 		Utils::GetConsole = (_GetConsole)FindPatternInEXE(
-			(BYTE*)"\x48\x83\xEC\x38\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x85\x00\x00\x00\x00\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24",
-			"xxxxxxx????xxxxx????xxxx?xxxx?xxxx");
+			(BYTE*)"\x48\x83\xEC\x38\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x85\x00\x00\x00\x00\x48\x89\x5C\x24\x00\x48\x89",
+			"xxxxxxx????xxxxx????xxxx?xx");
+
+		if (Utils::GetConsole == NULL) {
+			// 48 83 EC ? 48 8B 05 ? ? ? ? 48 85 C0 0F 85 ? ? ? ? 48 89 5C 24 ? 48 89 - Exodus Old
+			Utils::GetConsole = (_GetConsole)FindPatternInEXE(
+				(BYTE*)"\x48\x83\xEC\x00\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x85\x00\x00\x00\x00\x48\x89\x5C\x24\x00\x48\x89",
+				"xxx?xxx????xxxxx????xxxx?xx");
+		}
 	}
 #endif
 }

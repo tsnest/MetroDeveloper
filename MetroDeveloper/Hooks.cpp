@@ -34,6 +34,7 @@ _vfs_rbuffered vfs_rbuffered_Orig = nullptr;
 #else
 typedef void* (__fastcall* _vfs_ropen_package)(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size);
 typedef void* (__fastcall* _vfs_ropen_packageExodus)(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size, void* _unknown);
+typedef void* (__fastcall* _vfs_ropen_packageExodusOld)(void* result, const char* fn, void* _unknown1, void* _unknown2);
 typedef void(__fastcall* _vfs_rbuffered_package)(void* package, const char* fn, void* cb, const int force_raw);
 typedef void(__fastcall* _vfs_rbuffered_packageExodus)(const char* fn, void* cb);
 typedef void* (__fastcall* _rblock_init)(const char* fn, unsigned int* f_offset, unsigned int* f_size, unsigned int* not_packaged);
@@ -185,6 +186,13 @@ Hooks::Hooks()
 			clevel_r_on_key_press_Address = (LPVOID)FindPatternInEXE(
 				(BYTE*)"\x44\x89\x4C\x24\x00\x44\x89\x44\x24\x00\x89\x54\x24\x10\x48\x89\x4C\x24\x00\x55\x53\x57",
 				"xxxx?xxxx?xxxxxxxx?xxx");
+
+			if (clevel_r_on_key_press_Address == NULL) {
+				// 44 89 4c 24 ? 48 89 4c 24 ? 55 53 - Exodus OLD
+				clevel_r_on_key_press_Address = (LPVOID)FindPatternInEXE(
+					(BYTE*)"\x44\x89\x4c\x24\x00\x48\x89\x4c\x24\x00\x55\x53",
+					"xxxx?xxxx?xx");
+			}
 		}
 
 		SetHook("clevel_r_on_key_press", clevel_r_on_key_press_Address, (LPVOID)&clevel_r_on_key_press_Hook, reinterpret_cast<LPVOID*>(&clevel_r_on_key_press_Orig));
@@ -283,13 +291,33 @@ Hooks::Hooks()
 					(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x56\x57\x41\x54\x41\x55\x41\x57\x48\x83\xEC\x40\x45\x33\xED\x45\x8B\xE1\x49\x8B\xE8\x48\x8B\xFA\x48\x8B\xF1\x44\x39\x6A\x0C\x0F\x84\x00\x00\x00\x00\x48\x8B\x84\x24\x00\x00\x00\x00\x4D\x8B\xC8\x4C\x8B\x02\x41\xBF",
 					"xxxx?xxxx?xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xxxx????xxxxxxxx");
 
+				if (vfs_ropen_package_Address == NULL) {
+					// 40 53 57 48 83 ec ? 48 8b 05 ? ? ? ? 48 89 cb - Exodus OLD
+					vfs_ropen_package_Address = (LPVOID)FindPatternInEXE(
+						(BYTE*)"\x40\x53\x57\x48\x83\xec\x00\x48\x8b\x05\x00\x00\x00\x00\x48\x89\xcb",
+						"xxxxxx?xxx????xxx");
+
+					SetHook("vfs_ropen_package", vfs_ropen_package_Address, (LPVOID)&vfs_ropen_package_HookExodusOld, reinterpret_cast<LPVOID*>(&vfs_ropen_package_Orig));
+				} else {
+					SetHook("vfs_ropen_package", vfs_ropen_package_Address, (LPVOID)&vfs_ropen_package_HookExodus, reinterpret_cast<LPVOID*>(&vfs_ropen_package_Orig));
+				}
+
 				// 40 56 48 83 EC 30 48 8B 42 08 - Exodus
 				vfs_rbuffered_package_Address = (LPVOID)FindPatternInEXE(
 					(BYTE*)"\x40\x56\x48\x83\xEC\x30\x48\x8B\x42\x08",
 					"xxxxxxxxxx");
+
+				if (vfs_rbuffered_package_Address == NULL) {
+					// 48 89 5c 24 ? 48 89 6c 24 ? 48 89 74 24 ? 48 89 7c 24 ? 41 56 48 83 ec ? 48 8b 1d ? ? ? ? 48 89 ce - Exodus OLD
+					vfs_rbuffered_package_Address = (LPVOID)FindPatternInEXE(
+						(BYTE*)"\x48\x89\x5c\x24\x00\x48\x89\x6c\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7c\x24\x00\x41\x56\x48\x83\xec\x00\x48\x8b\x1d\x00\x00\x00\x00\x48\x89\xce",
+						"xxxx?xxxx?xxxx?xxxx?xxxxx?xxx????xxx");
+				}
 			}
 
-			SetHook("vfs_ropen_package", vfs_ropen_package_Address, Utils::GetGame() == GAME::EXODUS ? (LPVOID)&vfs_ropen_package_HookExodus : (LPVOID)&vfs_ropen_package_Hook, reinterpret_cast<LPVOID*>(&vfs_ropen_package_Orig));
+			if (Utils::GetGame() != GAME::EXODUS)
+				SetHook("vfs_ropen_package", vfs_ropen_package_Address, (LPVOID)&vfs_ropen_package_Hook, reinterpret_cast<LPVOID*>(&vfs_ropen_package_Orig));
+
 			SetHook("vfs_rbuffered_package", vfs_rbuffered_package_Address, Utils::GetGame() == GAME::EXODUS ? (LPVOID)&vfs_rbuffered_package_HookExodus : (LPVOID)&vfs_rbuffered_package_Hook, reinterpret_cast<LPVOID*>(&vfs_rbuffered_package_Orig));
 			if (Utils::GetGame() == GAME::REDUX && !onReduxEGS) {
 				SetHook("vfs_package_registry_level_downloaded", vfs_package_registry_level_downloaded_Address, (LPVOID)&vfs_package_registry_level_downloaded_Hook,
@@ -318,10 +346,17 @@ Hooks::Hooks()
 					(BYTE*)"\x48\x89\x5C\x24\x00\x57\xB8\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x2B\xE0\x48\x8B\xD9\xE8\x00\x00\x00\x00\x33\xD2\xBF\x00\x00\x00\x00\x38\x13\x74\x5C\x33\xC0\x0F\xB6\x0B\x80\xF9\x0A\x75\x41\xC6\x44\x04\x00\x00\x80\x7C\x24\x00\x00\x75\x07\x66\xC7\x44\x24",
 					"xxxx?xx????x????xxxxxxx????xxx????xxxxxxxxxxxxxxxxx??xxx??xxxxxx");
 			} else if (Utils::GetGame() == GAME::EXODUS) {
-				// 40 56 B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 48 8B F1 E8 ? ? ? ? 45 33 C0 44 38 06 0F 84 ? ? ? ? 48 89 9C 24 ? ? ? ? 33 DB 33 C0 48 89 BC 24 ? ? ? ? 0F B6 14 33 80 FA 0D 75 36 80 7C 33 ? ? 75 2F C6 44 04 ? ? 80 7C 24 ? ? 75 07 66 C7 44 24 - Exodus
+				// 40 56 B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 48 8B F1 - Exodus
 				slog_Address = (LPVOID)FindPatternInEXE(
-					(BYTE*)"\x40\x56\xB8\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x2B\xE0\x48\x8B\xF1\xE8\x00\x00\x00\x00\x45\x33\xC0\x44\x38\x06\x0F\x84\x00\x00\x00\x00\x48\x89\x9C\x24\x00\x00\x00\x00\x33\xDB\x33\xC0\x48\x89\xBC\x24\x00\x00\x00\x00\x0F\xB6\x14\x33\x80\xFA\x0D\x75\x36\x80\x7C\x33\x00\x00\x75\x2F\xC6\x44\x04\x00\x00\x80\x7C\x24\x00\x00\x75\x07\x66\xC7\x44\x24",
-					"xxx????x????xxxxxxx????xxxxxxxx????xxxx????xxxxxxxx????xxxxxxxxxxxx??xxxxx??xxx??xxxxxx");
+					(BYTE*)"\x40\x56\xB8\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x2B\xE0\x48\x8B\xF1",
+					"xxx????x????xxxxxx");
+
+				if (slog_Address == NULL) {
+					// 40 53 B8 ? ? ? ? E8 ? ? ? ? 48 29 C4 48 89 CB - Exodus OLD
+					slog_Address = (LPVOID)FindPatternInEXE(
+						(BYTE*)"\x40\x53\xb8\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x48\x29\xc4\x48\x89\xcb",
+						"xxx????x????xxxxxx");
+				}
 			}
 
 			SetHook("slog", slog_Address, (LPVOID)&slog_Hook, reinterpret_cast<LPVOID*>(&slog_Orig));
@@ -416,14 +451,16 @@ Hooks::Hooks()
 		///////////////////////////////////////////////////////////////
 
 		if (g_fly && Utils::GetGame() == GAME::EXODUS) {
-			// Восстановление cflycam::r_on_key_press выпиленного в исходе
+			// Восстановление cflycam::r_on_key_press выпиленного в патчах исхода
 			// C2 00 00 CC CC CC CC CC CC CC CC CC CC CC CC CC 48 89 5C 24 ? 57 48 83 EC 20 48 8B 41 10 - Exodus
 			LPVOID cflycam_r_on_key_press_Address = (LPVOID)FindPatternInEXE(
 				(BYTE*)"\xC2\x00\x00\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\x48\x89\x5C\x24\x00\x57\x48\x83\xEC\x20\x48\x8B\x41\x10",
 				"xxxxxxxxxxxxxxxxxxxx?xxxxxxxxx");
 
-			void* cflycam_r_on_key_press_Orig = nullptr;
-			SetHook("cflycam_r_on_key_press", cflycam_r_on_key_press_Address, (LPVOID)&Fly::exodus_cflycam_r_on_key_press, reinterpret_cast<LPVOID*>(&cflycam_r_on_key_press_Orig));
+			if (cflycam_r_on_key_press_Address != NULL) {
+				void* cflycam_r_on_key_press_Orig = nullptr;
+				SetHook("cflycam_r_on_key_press", cflycam_r_on_key_press_Address, (LPVOID)&Fly::exodus_cflycam_r_on_key_press, reinterpret_cast<LPVOID*>(&cflycam_r_on_key_press_Orig));
+			}
 		}
 
 		///////////////////////////////////////////////////////////////
@@ -548,7 +585,7 @@ void Hooks::cmd_register_commands_Hook()
 #ifdef _WIN64
 void* __fastcall Hooks::vfs_ropen_package_HookExodus(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size, void* _unknown)
 {
-	void* ret = ContentUnlocker::vfs_ropen_package(result, package, fn, force_raw, uncompressed_size);
+	void* ret = ContentUnlocker::vfs_ropen_package(result, fn);
 	if (ret == nullptr) {
 		ret = ((_vfs_ropen_packageExodus)vfs_ropen_package_Orig)(result, package, fn, force_raw, uncompressed_size, _unknown);
 	}
@@ -556,9 +593,19 @@ void* __fastcall Hooks::vfs_ropen_package_HookExodus(void* result, void* package
 	return ret;
 }
 
+void* __fastcall Hooks::vfs_ropen_package_HookExodusOld(void* result, const char* fn, void* _unknown1, void* _unknown2)
+{
+	void* ret = ContentUnlocker::vfs_ropen_package(result, fn);
+	if (ret == nullptr) {
+		ret = ((_vfs_ropen_packageExodusOld)vfs_ropen_package_Orig)(result, fn, _unknown1, _unknown2);
+	}
+
+	return ret;
+}
+
 void* __fastcall Hooks::vfs_ropen_package_Hook(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size)
 {
-	void* ret = ContentUnlocker::vfs_ropen_package(result, package, fn, force_raw, uncompressed_size);
+	void* ret = ContentUnlocker::vfs_ropen_package(result, fn);
 	if (ret == nullptr) {
 		ret = ((_vfs_ropen_package)vfs_ropen_package_Orig)(result, package, fn, force_raw, uncompressed_size);
 	}

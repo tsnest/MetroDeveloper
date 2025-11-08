@@ -6,6 +6,7 @@ typedef void(__cdecl* _set_camera_2033)(...); // this function has weird calling
 _base_npc_cameras_cam_set base_npc_cameras_cam_set = nullptr;
 _set_camera_2033 set_camera_2033 = nullptr;
 static bool isLL = false;
+static int base_npc_cameras_exodus_offset = 0x928; // new offset
 
 enum enpc_cameras_old // 2033, Last Light, Redux (changed a bit in Arktika.1)
 {
@@ -20,12 +21,12 @@ enum enpc_cameras_old // 2033, Last Light, Redux (changed a bit in Arktika.1)
 
 enum enpc_cameras_new // Arktika.1 and Exodus bitmask
 {
-	bit_enc_first_eye = 0,
-	bit_enc_look_at = 1 << 0,
-	bit_enc_free_look = 1 << 1,
-	bit_enc_station = (1 << 2) - 1,
-	bit_enc_locked = 1 << 2,
-	//bit_enc_max_cam = 5 // not used in game
+	bit_enc_first_eye,
+	bit_enc_look_at,
+	bit_enc_free_look,
+	bit_enc_station,
+	bit_enc_locked,
+	//bit_enc_max_cam // not used in game
 };
 
 Unlock3rdPerson::Unlock3rdPerson()
@@ -50,10 +51,19 @@ Unlock3rdPerson::Unlock3rdPerson()
 				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x57\x48\x83\xEC\x30\x48\x63\x41\x60\x48\x8B\xE9\x0F\x29\x74\x24\x00\x41\x8B\xF9\x0F\x28\xF2\x48\x8B\x74\xC1\x00\x89\x51\x60\x48\x63\xC2\x48\x8B\x5C\xC1\x00\x48\x8B\xCE\x48\x8B\x06\xFF\x50\x28\x48\x8B\x03\x44\x8B\xC7",
 				"xxxx?xxxx?xxxx?xxxxxxxxxxxxxxxx?xxxxxxxxxx?xxxxxxxxxx?xxxxxxxxxxxxxxx");
 		} else if (Utils::GetGame() == GAME::EXODUS) {
-			// 48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 30 48 63 81 ? ? ? ? 48 8B F1 0F 29 74 24 ? 41 8B F9 0F 28 F2 4C 8B B4 C1 ? ? ? ? 89 91 ? ? ? ? 48 63 C2 48 8B 9C C1 ? ? ? ? 49 8B CE 49 8B 06 FF 50 28 48 8B 03 44 8B C7 49 8B D6 48 8B CB FF 50 20 85 FF 75 24 - Exodus
+			// 48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 30 48 63 81 ? ? ? ? 48 8B - Exodus
 			base_npc_cameras_cam_set = (_base_npc_cameras_cam_set)FindPatternInEXE(
-				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x30\x48\x63\x81\x00\x00\x00\x00\x48\x8B\xF1\x0F\x29\x74\x24\x00\x41\x8B\xF9\x0F\x28\xF2\x4C\x8B\xB4\xC1\x00\x00\x00\x00\x89\x91\x00\x00\x00\x00\x48\x63\xC2\x48\x8B\x9C\xC1\x00\x00\x00\x00\x49\x8B\xCE\x49\x8B\x06\xFF\x50\x28\x48\x8B\x03\x44\x8B\xC7\x49\x8B\xD6\x48\x8B\xCB\xFF\x50\x20\x85\xFF\x75\x24",
-				"xxxx?xxxx?xxxx?xxxxxxxxx????xxxxxxx?xxxxxxxxxx????xx????xxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x30\x48\x63\x81\x00\x00\x00\x00\x48\x8B",
+				"xxxx?xxxx?xxxx?xxxxxxxxx????xx");
+
+			if (base_npc_cameras_cam_set == NULL) {
+				// 48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 30 48 63 81 - Exodus OLD
+				base_npc_cameras_cam_set = (_base_npc_cameras_cam_set)FindPatternInEXE(
+					(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x30\x48\x63\x81",
+					"xxxx?xxxx?xxxx?xxxxxxxxx");
+
+				base_npc_cameras_exodus_offset = 0x908; // old offset
+			}
 		}
 #else
 		isLL = Utils::isLL();
@@ -106,7 +116,7 @@ void Unlock3rdPerson::clevel_r_on_key_press(void* _this, int action, int key, in
 			control_entity = *((void**)((char*)_this + 0x20));
 			view_entity = *((void**)((char*)_this + 0x28));
 
-			base_npc_cameras = (Utils::GetGame() == GAME::ARKTIKA ? *((void**)((char*)control_entity + 0x7C8)) : *((void**)((char*)control_entity + 0x928)));
+			base_npc_cameras = (Utils::GetGame() == GAME::ARKTIKA ? *((void**)((char*)control_entity + 0x7C8)) : *((void**)((char*)control_entity + base_npc_cameras_exodus_offset)));
 
 			if (key == 59) // F1
 				base_npc_cameras_cam_set(base_npc_cameras, bit_enc_first_eye, 1.f, 1);

@@ -26,6 +26,7 @@ public:
 
 	static void* __fastcall vfs_ropen_package_Hook(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size);
 	static void* __fastcall vfs_ropen_package_HookExodus(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size, void* _unknown);
+	static void* __fastcall vfs_ropen_package_HookExodusOld(void* result, const char* fn, void* _unknown1, void* _unknown2);
 	static void __fastcall vfs_rbuffered_package_Hook(void* package, const char* fn, void* cb, const int force_raw);
 	static void __fastcall vfs_rbuffered_package_HookExodus(const char* fn, void* cb);
 	static bool __fastcall vfs_package_registry_level_downloaded_Hook(void* _this, const char* map_name);

@@ -100,25 +100,39 @@ Fly::Fly()
 				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x54\x24\x00\x57\x48\x83\xEC\x50\x48\x8B\x02\x48\x8B\xDA\x48\x8B\x94\x24\x00\x00\x00\x00\x48\x8B\xF9\x0F\x29\x74\x24\x00\x48\x8B\xCB\x0F\x29\x7C\x24\x00\x0F\x28\xF3\x0F\x28\xFA\xFF\x90\x00\x00\x00\x00\x48\x8B\x03\x0F\x28\xD6\x0F\x28\xCF\x48\x8B\xCB\xFF\x90\x00\x00\x00\x00\x48\x8D\x05",
 				"xxxx?xxxx?xxxxxxxxxxxxxxx????xxxxxxx?xxxxxxx?xxxxxxxx????xxxxxxxxxxxxxx????xxx");
 		} else if (Utils::GetGame() == GAME::EXODUS) {
-			// 40 53 55 56 57 41 54 41 56 41 57 48 81 EC ? ? ? ? F3 0F 10 1D ? ? ? ? 48 8D 05 ? ? ? ? F3 0F 10 15 ? ? ? ? 45 - Exodus
+			// 40 53 55 56 57 41 54 41 56 41 57 48 81 EC ? ? ? ? F3 0F 10 1D - Exodus
 			cflycam_cflycam = (_cflycam_cflycam)FindPatternInEXE(
-				(BYTE*)"\x40\x53\x55\x56\x57\x41\x54\x41\x56\x41\x57\x48\x81\xEC\x00\x00\x00\x00\xF3\x0F\x10\x1D\x00\x00\x00\x00\x48\x8D\x05\x00\x00\x00\x00\xF3\x0F\x10\x15\x00\x00\x00\x00\x45",
-				"xxxxxxxxxxxxxx????xxxx????xxx????xxxx????x");
+				(BYTE*)"\x40\x53\x55\x56\x57\x41\x54\x41\x56\x41\x57\x48\x81\xEC\x00\x00\x00\x00\xF3\x0F\x10\x1D",
+				"xxxxxxxxxxxxxx????xxxx");
 
-			// 48 83 EC 28 48 8B 05 ? ? ? ? 48 85 C0 0F 85 ? ? ? ? 65 48 8B 04 25 ? ? ? ? 48 89 5C 24 ? 48 8D 1D ? ? ? ? 48 89 6C 24 ? 48 89 74 24 ? 33 F6 48 8B 08 BA - Exodus
+			// 48 83 EC 28 48 8B 05 ? ? ? ? 48 85 C0 0F 85 ? ? ? ? 65 48 8B 04 25 - Exodus
 			memory = (_memory)FindPatternInEXE(
-				(BYTE*)"\x48\x83\xEC\x28\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x85\x00\x00\x00\x00\x65\x48\x8B\x04\x25\x00\x00\x00\x00\x48\x89\x5C\x24\x00\x48\x8D\x1D\x00\x00\x00\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x33\xF6\x48\x8B\x08\xBA",
-				"xxxxxxx????xxxxx????xxxxx????xxxx?xxx????xxxx?xxxx?xxxxxx");
+				(BYTE*)"\x48\x83\xEC\x28\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x85\x00\x00\x00\x00\x65\x48\x8B\x04\x25",
+				"xxxxxxx????xxxxx????xxxxx");
 
 			// 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC 20 48 8B DA 49 8D 40 FF 33 D2 41 B9 ? ? ? ? 48 8B F1 8B FA 49 3B C1 77 14 BF - Exodus
 			tlsf_memalign = (_tlsf_memalign)FindPatternInEXE(
 				(BYTE*)"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x57\x48\x83\xEC\x20\x48\x8B\xDA\x49\x8D\x40\xFF\x33\xD2\x41\xB9\x00\x00\x00\x00\x48\x8B\xF1\x8B\xFA\x49\x3B\xC1\x77\x14\xBF",
 				"xxxx?xxxx?xxxxxxxxxxxxxxxx????xxxxxxxxxxx");
 
+			if (tlsf_memalign == NULL) {
+				// 48 89 5c 24 ? 48 89 74 24 ? 57 48 83 ec ? 48 89 d3 49 8d 40 - Exodus OLD
+				tlsf_memalign = (_tlsf_memalign)FindPatternInEXE(
+					(BYTE*)"\x48\x89\x5c\x24\x00\x48\x89\x74\x24\x00\x57\x48\x83\xec\x00\x48\x89\xd3\x49\x8d\x40",
+					"xxxx?xxxx?xxxx?xxxxxx");
+			}
+
 			// 48 89 6C 24 ? 48 89 54 24 ? 57 48 83 EC 50 48 8B 02 48 8B F9 48 89 5C 24 ? 48 8B DA 48 8B 94 24 ? ? ? ? 48 8B CB 0F 29 74 24 ? 0F 28 F2 0F 29 7C 24 - Exodus
 			camera_manager_play_track = (void*)FindPatternInEXE(
 				(BYTE*)"\x48\x89\x6C\x24\x00\x48\x89\x54\x24\x00\x57\x48\x83\xEC\x50\x48\x8B\x02\x48\x8B\xF9\x48\x89\x5C\x24\x00\x48\x8B\xDA\x48\x8B\x94\x24\x00\x00\x00\x00\x48\x8B\xCB\x0F\x29\x74\x24\x00\x0F\x28\xF2\x0F\x29\x7C\x24",
 				"xxxx?xxxx?xxxxxxxxxxxxxxx?xxxxxxx????xxxxxxx?xxxxxxx");
+
+			if (camera_manager_play_track == NULL) {
+				// 48 89 5c 24 ? 48 89 74 24 ? 48 89 54 24 ? 57 48 83 ec ? 48 8b 02 - Exodus OLD
+				camera_manager_play_track = (void*)FindPatternInEXE(
+					(BYTE*)"\x48\x89\x5c\x24\x00\x48\x89\x74\x24\x00\x48\x89\x54\x24\x00\x57\x48\x83\xec\x00\x48\x8b\x02",
+					"xxxx?xxxx?xxxx?xxxx?xxx");
+			}
 
 			// 48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 20 48 8B 1D ? ? ? ? 48 8B F2 48 C7 C7 ? ? ? ? 33 C0 F0 0F B1 BB ? ? ? ? 74 5D 8B 83 ? ? ? ? 85 C0 74 47 8B 0D ? ? ? ? 03 0D ? ? ? ? 74 0E 48 8D 0D ? ? ? ? E8 ? ? ? ? EB DA
 			entities_core__ser_lock = (_entities_core__ser_lock)FindPatternInEXE(
@@ -192,10 +206,10 @@ void Fly::clevel_r_on_key_press(int action, int key, int state, int resending)
 					(BYTE*)"\x48\x8B\x05\x00\x00\x00\x00\x4C\x8D\x87\x00\x00\x00\x00\x48\x8D\x97\x00\x00\x00\x00\x48\x8D\x4C\x24\x00\x48\x8B\x58\x10\xE8\x00\x00\x00\x00\x48\x8B\xD0\x48\x89\x74\x24\x00\x0F\x57\xDB\x0F\x57\xD2\x48\x8B\xCB\xE8\x00\x00\x00\x00\x48\x8D\x8F\x00\x00\x00\x00\xEB\x07\x48\x8D\x8F\x00\x00\x00\x00\xE8",
 					"xxx????xxx????xxx????xxxx?xxxxx????xxxxxxx?xxxxxxxxxx????xxx????xxxxx????x");
 			} else if (Utils::GetGame() == GAME::EXODUS) {
-				// 48 8B 05 ? ? ? ? 4C 8D 87 ? ? ? ? 48 8D 97 ? ? ? ? 48 8D 4C 24 ? 48 8B 58 10 E8 ? ? ? ? 48 8B D0 48 89 74 24 ? 0F 57 DB 0F 57 D2 48 8B CB E8 ? ? ? ? B8 ? ? ? ? EB 05 B8 ? ? ? ? 48 8D 0C 38 E8 ? ? ? ? 48 8B 4C 24 - Exodus
+				// 48 8B 05 ? ? ? ? 4C 8D 87 ? ? ? ? 48 8D 97 ? ? ? ? 48 8D 4C 24 ? 48 8B 58 10 E8 ? ? ? ? 48 8B D0 48 89 74 24 ? 0F 57 DB 0F 57 D2 48 8B CB E8 ? ? ? ? B8 ? ? ? ? EB 05 - Exodus OLD
 				mov = FindPatternInEXE(
-					(BYTE*)"\x48\x8B\x05\x00\x00\x00\x00\x4C\x8D\x87\x00\x00\x00\x00\x48\x8D\x97\x00\x00\x00\x00\x48\x8D\x4C\x24\x00\x48\x8B\x58\x10\xE8\x00\x00\x00\x00\x48\x8B\xD0\x48\x89\x74\x24\x00\x0F\x57\xDB\x0F\x57\xD2\x48\x8B\xCB\xE8\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xEB\x05\xB8\x00\x00\x00\x00\x48\x8D\x0C\x38\xE8\x00\x00\x00\x00\x48\x8B\x4C\x24",
-					"xxx????xxx????xxx????xxxx?xxxxx????xxxxxxx?xxxxxxxxxx????x????xxx????xxxxx????xxxx");
+					(BYTE*)"\x48\x8B\x05\x00\x00\x00\x00\x4C\x8D\x87\x00\x00\x00\x00\x48\x8D\x97\x00\x00\x00\x00\x48\x8D\x4C\x24\x00\x48\x8B\x58\x10\xE8\x00\x00\x00\x00\x48\x8B\xD0\x48\x89\x74\x24\x00\x0F\x57\xDB\x0F\x57\xD2\x48\x8B\xCB\xE8\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xEB\x05",
+					"xxx????xxx????xxx????xxxx?xxxxx????xxxxxxx?xxxxxxxxxx????x????xx");
 			}
 
 			// вычисляем адрес и получаем g_game
@@ -262,7 +276,7 @@ void Fly::clevel_r_on_key_press(int action, int key, int state, int resending)
 }
 
 #ifdef _WIN64
-// восстанавливаем выпиленный в релизе исхода cflycam::r_on_key_press
+// восстанавливаем выпиленный в патчах исхода cflycam::r_on_key_press
 void __fastcall Fly::exodus_cflycam_r_on_key_press(void* _cflycam, int action, int key, int state, int resending)
 {
 	switch (key) {

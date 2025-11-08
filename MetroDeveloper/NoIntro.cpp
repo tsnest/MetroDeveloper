@@ -49,10 +49,10 @@ NoIntro::NoIntro()
 			BYTE jmp[] = { 0xEB };
 			ASMWrite(IntroAddress, jmp, sizeof(jmp));
 		} else if (Utils::GetGame() == GAME::EXODUS) {
-			// 73 3B 0F B7 C0 48 8D 8D - Exodus
+			// 73 ? 0F B7 C0 48 8D 8D - Exodus
 			IntroAddress = (LPVOID)FindPatternInEXE(
-				(BYTE*)"\x73\x3B\x0F\xB7\xC0\x48\x8D\x8D",
-				"xxxxxxxx");
+				(BYTE*)"\x73\x00\x0F\xB7\xC0\x48\x8D\x8D",
+				"x?xxxxxx");
 			BYTE jmp[] = { 0xEB };
 			ASMWrite(IntroAddress, jmp, sizeof(jmp));
 		}
