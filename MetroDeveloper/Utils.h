@@ -1,6 +1,7 @@
 #pragma once
 #include "Patcher.h"
 #include "uconsole.h"
+#include <math.h>
 
 #define LODWORD(f) (*((UINT*)&(f)))
 
@@ -28,12 +29,16 @@ public:
 	static UINT* engine_time__global_ms;
 	static DWORD64* g_level;
 	static DWORD64* g_entities;
+	static float* slowmo_scale_debug;
 
 	static GAME GetGame();
 #ifdef _WIN64
 	static UINT GetTimeGlobalMS();
 	static DWORD64 GetGLevel();
 	static DWORD64 GetGEntities();
+	static void slowmo_debug_increase();
+	static void slowmo_debug_decrease();
+	static void slowmo_debug(float f);
 #endif
 
 #ifndef _WIN64

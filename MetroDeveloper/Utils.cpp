@@ -5,6 +5,7 @@ GAME Utils::Game;
 UINT* Utils::engine_time__global_ms;
 DWORD64* Utils::g_level;
 DWORD64* Utils::g_entities;
+float* Utils::slowmo_scale_debug;
 
 Utils::Utils()
 {
@@ -67,6 +68,15 @@ Utils::Utils()
 
 			// вычисляем адрес и получаем g_entities
 			g_entities = (DWORD64*)(mov + 7 + *(DWORD*)(mov + 3));
+
+			// читаем адрес инструкции mulss xmm2, cs:slowmo_scale_debug
+			// F3 0F 59 15 ? ? ? ? F3 0F 59 15 ? ? ? ? F3 0F 59 D0 F3 0F 58 15 ? ? ? ? 0F 28 F2
+			DWORD64 mulss = FindPatternInEXE(
+				(BYTE*)"\xF3\x0F\x59\x15\x00\x00\x00\x00\xF3\x0F\x59\x15\x00\x00\x00\x00\xF3\x0F\x59\xD0\xF3\x0F\x58\x15\x00\x00\x00\x00\x0F\x28\xF2",
+				"xxxx????xxxx????xxxxxxxx????xxx");
+
+			// вычисляем адрес и получаем slowmo_scale_debug
+			slowmo_scale_debug = (float*)(mulss + 8 + *(DWORD*)(mulss + 4));
 		}
 	}
 
@@ -125,6 +135,55 @@ DWORD64 Utils::GetGEntities()
 	else {
 		return 0;
 	}
+}
+
+void Utils::slowmo_debug_increase()
+{
+	if (*slowmo_scale_debug > 0.0099999998) {
+		if (*slowmo_scale_debug > 0.029999999) {
+			if (*slowmo_scale_debug > 0.059999999) {
+				if (*slowmo_scale_debug > 0.12)
+					*slowmo_scale_debug = fmaxf(fminf(*slowmo_scale_debug + 0.25, 10.0), 0.25);
+				else
+					*slowmo_scale_debug = 0.25;
+			} else {
+				*slowmo_scale_debug = 0.12;
+			}
+		} else {
+			*slowmo_scale_debug = 0.059999999;
+		}
+	} else {
+		*slowmo_scale_debug = 0.029999999;
+	}
+}
+
+void Utils::slowmo_debug_decrease()
+{
+	if (*slowmo_scale_debug <= 0.5) {
+		if (*slowmo_scale_debug <= 0.25) {
+			if (*slowmo_scale_debug <= 0.12) {
+				if (*slowmo_scale_debug <= 0.059999999) {
+					if (*slowmo_scale_debug <= 0.029999999)
+						*slowmo_scale_debug = 0.0099999998;
+					else
+						*slowmo_scale_debug = 0.029999999;
+				} else {
+					*slowmo_scale_debug = 0.059999999;
+				}
+			} else {
+				*slowmo_scale_debug = 0.12;
+			}
+		} else {
+			*slowmo_scale_debug = 0.25;
+		}
+	} else {
+		*slowmo_scale_debug = fmaxf(fminf(*slowmo_scale_debug - 0.25, 1.0), 0.0049999999);
+	}
+}
+
+void Utils::slowmo_debug(float f)
+{
+	*slowmo_scale_debug = f;
 }
 #endif
 

@@ -14,6 +14,7 @@ typedef void* (__fastcall* _camera_manager_play_track_redux)(DWORD64 _this, void
 typedef void* (__fastcall* _camera_manager_play_track_arktika_and_exodus)(DWORD64 _this, void* t, float accrue, float start_pos, void* owner);
 _tlsf_memalign tlsf_memalign = nullptr;
 DWORD64 g_game = NULL;
+bool isTimeIncreased = false;
 #else
 typedef _track(__thiscall* _cflycam_cflycam)(void* _this, const char* name);
 typedef LPCRITICAL_SECTION(__cdecl* _memory)();
@@ -317,6 +318,20 @@ void __fastcall Fly::exodus_cflycam_r_on_key_press(void* _cflycam, int action, i
 	case 197: { // PAUSE
 		uconsole_server_exodus** console = (uconsole_server_exodus**)Utils::GetConsole();
 		(*console)->execute_deferred(console, "pause");
+		break;
+	}
+	case 78: { // NUMPAD PLUS
+		isTimeIncreased = true;
+		Utils::slowmo_debug_increase();
+		break;
+	}
+	case 74: { // NUMPAD MINUS
+		if (isTimeIncreased) {
+			isTimeIncreased = false;
+			Utils::slowmo_debug(1.0f);
+		} else {
+			Utils::slowmo_debug_decrease();
+		}
 		break;
 	}
 	default:

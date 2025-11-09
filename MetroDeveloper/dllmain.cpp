@@ -32,8 +32,8 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 {
 	if(reason == DLL_PROCESS_ATTACH)
 	{
-		AllocConsole();
-		freopen("CONOUT$", "w", stdout);
+		//AllocConsole();
+		//freopen("CONOUT$", "w", stdout);
 
 		if (Utils::GetBool("other", "beep", true)) {
 			Beep(1000, 200);
