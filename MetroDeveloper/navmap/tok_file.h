@@ -1,3 +1,4 @@
+#ifndef _WIN64
 #ifndef __TOK_FILE_H__
 #define __TOK_FILE_H__
 
@@ -43,4 +44,5 @@ int getAttribute_int(TOKNode *node, const char *name, int def);
 float getAttribute_float(TOKNode *node, const char *name, float def);
 const char *getAttribute_stringz(TOKNode *node, const char *name, const char *def);
 
+#endif
 #endif

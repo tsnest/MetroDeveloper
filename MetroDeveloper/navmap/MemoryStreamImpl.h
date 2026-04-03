@@ -1,4 +1,5 @@
 #pragma once
+#ifndef _WIN64
 #include "vector"
 #include "i_pathengine.h"
 
@@ -14,4 +15,4 @@ public:
 	void putInt(int value);
 	void putFloat(float value);
 };
-
+#endif

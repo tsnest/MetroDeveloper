@@ -1,8 +1,10 @@
+#ifndef _WIN64
 #include "NavMapGen.h"
 #include "Utils.h"
-#include "i_pathengine.h"
-#include "MemoryStreamImpl.h"
-#include "model.hpp"
+#include "uconsole.h"
+#include "navmap\i_pathengine.h"
+#include "navmap\MemoryStreamImpl.h"
+#include "navmap\model.hpp"
 #include "stdio.h"
 
 string256 navmapFormat;
@@ -32,7 +34,7 @@ NavMapGen::NavMapGen()
 
 	// B8 ? ? ? ? A3 ? ? ? ? A3 ? ? ? ? B8 ? ? ? ? A3 ? ? ? ? A3 ? ? ? ? B8 ? ? ? ? A3 ? ? ? ? A3 ? ? ? ? B8 ? ? ? ? A3 ? ? ? ? A3 ? ? ? ? B8 - ORIG 2033
 	getPathEngine = (_getPathEngine)Patcher::FindPatternInEXE(
-		(BYTE*)"\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8",
+		"\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xA3\x00\x00\x00\x00\xB8",
 		"x????x????x????x????x????x????x????x????x????x????x????x????x");
 }
 
@@ -323,3 +325,4 @@ DWORD WINAPI NavMapGen::NavMapThread(LPVOID)
 
 	return 0;
 }
+#endif

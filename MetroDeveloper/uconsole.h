@@ -1,36 +1,13 @@
 #pragma once
 
-struct uconsole_command_old {
-	void* __vftable;
+#include "Patcher.h"
+#include "RestoreCommands.h"
+#include "Utils.h"
 
-	const char* _name;
-	char _enabled : 1;
-	char _lower_case_args : 1;
-	char _empty_args_handled : 1;
-	char _save : 1;
-	char _option : 1;
-};
+typedef void(__thiscall* _command_add) (void* _console, void* cmd);
+typedef void(__thiscall* _show_or_hide)(void* _console);
+typedef void(__cdecl* _execute) (void* _console, const char* cmd, ...);
 
-struct uconsole_command_new {
-	void* __vftable;
-
-	const char* _name;
-	char _unk1 : 1;
-	char _unk2 : 1;
-	char _enabled : 1;
-	char _unk4 : 1;
-	char _unk5 : 1;
-	char _unk6 : 1;
-	char _unk7 : 1;
-	char _unk8 : 1;
-	
-};
-
-typedef void(__thiscall* _command_add) (void* _console, void* C);
-typedef void(__thiscall* _show)(void* _console);
-typedef void(__cdecl* _execute_deferred) (void* _console, const char* cmd, ...);
-
-#pragma pack(push, 1)
 struct uconsole_server {
 	void* _console;
 
@@ -41,10 +18,10 @@ struct uconsole_server {
 	_command_add command_add;
 	void* command_remove;
 	void* command_find;
-	_show show;
-	void* hide;
-	void* execute;
-	_execute_deferred execute_deferred;
+	_show_or_hide show;
+	_show_or_hide hide;
+	_execute execute;
+	_execute execute_deferred;
 	void* execute_commit;
 	void* enumerate;
 	void* get_token;
@@ -54,9 +31,8 @@ struct uconsole_server {
 	void* get_integer_value; // Redux
 #endif
 };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
+#ifdef _WIN64
 struct uconsole_server_exodus {
 	void* _console;
 
@@ -66,10 +42,10 @@ struct uconsole_server_exodus {
 	_command_add command_add;
 	void* command_remove;
 	void* command_find;
-	_show show;
-	void* hide;
-	void* execute;
-	_execute_deferred execute_deferred;
+	_show_or_hide show;
+	_show_or_hide hide;
+	_execute execute;
+	_execute execute_deferred;
 	void* execute_commit;
 	void* enumerate;
 	void* get_token;
@@ -77,23 +53,131 @@ struct uconsole_server_exodus {
 	void* get_integer;
 	void* get_integer_value; // Redux
 };
-#pragma pack(pop)
+#endif
 
-struct cmd_mask_struct_old : public uconsole_command_old {
+struct uconsole_command_vtbl {
+	void* __vftable;
+
+	void* execute;
+	void* status;
+	void* info;
+	void* enum_values;
+	void* save;
+	void* enabled;
+};
+
+#ifdef _WIN64
+struct uconsole_command_exodus_vtbl : public uconsole_command_vtbl {
+	void* _unk1;
+};
+#endif
+
+#ifndef _WIN64
+struct uconsole_command_2033 {
+	uconsole_command_vtbl* __vftable;
+
+	const char* _name;
+	bool _enabled;
+	bool _lower_case_args;
+	bool _empty_args_handled;
+	bool _save;
+	bool _option;
+};
+#endif
+
+struct uconsole_command_ll {
+	uconsole_command_vtbl* __vftable;
+
+	const char* _name;
+	bool _enabled : 1;
+	bool _lower_case_args : 1;
+	bool _empty_args_handled : 1;
+	bool _save : 1;
+	bool _option : 1;
+};
+
+#ifdef _WIN64
+enum uconsole_cm_type_a1 {
+	cm_volatile,
+	cm_user,
+	cm_shared,
+	cm_action
+};
+
+struct uconsole_command_a1 {
+	uconsole_command_vtbl* __vftable;
+
+	const char* _name;
+	char _type : 2;
+	bool _enabled : 1;
+	bool _lower_case_args : 1;
+	bool _empty_args_handled : 1;
+	bool _option : 1;
+};
+#endif
+
+#ifndef _WIN64
+struct cmd_float_struct_2033 : public uconsole_command_2033 {
+	float* value; // float pointer
+	float min;
+	float max;
+
+	void construct(uconsole_command_vtbl* vtable_ptr, const char* name, float* float_ptr, float _min, float _max, bool save)
+	{
+		__vftable = vtable_ptr;
+
+		_name = name;
+		_enabled = true;
+		_lower_case_args = true;
+		_empty_args_handled = false;
+		_save = save;
+		_option = false;
+
+		value = float_ptr;
+		min = _min;
+		max = _max;
+	}
+};
+
+struct cmd_executor_struct_2033 : public uconsole_command_2033 {
+	void construct(uconsole_command_vtbl* vtable_ptr_dst, uconsole_command_vtbl* vtable_ptr_src, const char* name, void* executor_ptr)
+	{
+		__vftable = vtable_ptr_dst;
+
+		__vftable->__vftable = vtable_ptr_src->__vftable;
+		__vftable->execute = executor_ptr;
+		__vftable->status = vtable_ptr_src->status;
+		__vftable->info = vtable_ptr_src->info;
+		__vftable->enum_values = vtable_ptr_src->enum_values;
+		__vftable->save = vtable_ptr_src->save;
+		__vftable->enabled = vtable_ptr_src->enabled;
+
+		_name = name;
+		_enabled = true;
+		_lower_case_args = true;
+		_empty_args_handled = true;
+		_save = false;
+		_option = false;
+	}
+};
+#endif
+
+struct cmd_mask_struct_ll : public uconsole_command_ll {
 	unsigned int *value; // flags
 	unsigned int mask;
 	unsigned int mask_on;
 	unsigned int mask_off;
 
-	void construct(void *vtable_ptr, const char *name, unsigned *flags_ptr, unsigned flags_mask)
+	void construct(uconsole_command_vtbl* vtable_ptr, const char *name, unsigned *flags_ptr, unsigned flags_mask, bool save)
 	{
-		__vftable           = vtable_ptr;
+		__vftable			= vtable_ptr;
+
 		_name               = name;
-		_enabled            = 1;
-		_lower_case_args    = 1;
-		_empty_args_handled = 0;
-		_save				= 1;
-		_option             = 0;
+		_enabled            = true;
+		_lower_case_args    = true;
+		_empty_args_handled = false;
+		_save				= save;
+		_option             = false;
 		
 		value    = flags_ptr;
 		mask     = flags_mask;
@@ -102,47 +186,157 @@ struct cmd_mask_struct_old : public uconsole_command_old {
 	}
 };
 
-struct cmd_mask_struct_new : public uconsole_command_new {
+struct cmd_float_struct_ll : public uconsole_command_ll {
+	float* value; // float pointer
+	float min;
+	float max;
+
+	void construct(uconsole_command_vtbl* vtable_ptr, const char* name, float* float_ptr , float _min, float _max, bool save)
+	{
+		__vftable			= vtable_ptr;
+
+		_name				= name;
+		_enabled			= true;
+		_lower_case_args	= true;
+		_empty_args_handled = false;
+		_save				= save;
+		_option				= false;
+
+		value	= float_ptr;
+		min		= _min;
+		max		= _max;
+	}
+};
+
+struct cmd_executor_struct_ll : public uconsole_command_ll {
+	void construct(uconsole_command_vtbl* vtable_ptr_dst, uconsole_command_vtbl* vtable_ptr_src, const char* name, void* executor_ptr)
+	{
+		__vftable = vtable_ptr_dst;
+
+		__vftable->__vftable = vtable_ptr_src->__vftable;
+		__vftable->execute = executor_ptr;
+		__vftable->status = vtable_ptr_src->status;
+		__vftable->info = vtable_ptr_src->info;
+		__vftable->enum_values = vtable_ptr_src->enum_values;
+		__vftable->save = vtable_ptr_src->save;
+		__vftable->enabled = vtable_ptr_src->enabled;
+
+		_name = name;
+		_enabled = true;
+		_lower_case_args = true;
+		_empty_args_handled = true;
+		_save = false;
+		_option = false;
+	}
+};
+
+#ifdef _WIN64
+struct cmd_mask_struct_a1 : public uconsole_command_a1 {
 	unsigned int* value; // flags
 	unsigned int mask;
 	unsigned int mask_on;
 	unsigned int mask_off;
 
-	void construct(void* vtable_ptr, const char* name, unsigned* flags_ptr, unsigned flags_mask)
+	void construct(uconsole_command_vtbl* vtable_ptr, const char* name, unsigned* flags_ptr, unsigned flags_mask, uconsole_cm_type_a1 type)
 	{
-		__vftable	= vtable_ptr;
-		_name		= name;
+		__vftable = vtable_ptr;
 
-		// в арктике и исходе порядок поменялся, и я не знаю точных значений тех или иных битов
-		// для сохранения команды в user.cfg, _unk1 должен быть 1 и _unk2 должен быть 0
-		_unk1		= 1;
-		_unk2		= 0;
-		_enabled	= 1;
-		_unk4		= 1;
-		_unk5		= 0;
-		_unk6		= 0;
+		_name = name;
+		_type = type;
+		_enabled = true;
+		_lower_case_args = true;
+		_empty_args_handled = false;
+		_option = false;
 
-		// _unk7 и _unk8 предположительно не используются
-		_unk7		= 0;
-		_unk8		= 0;
-
-		value	 = flags_ptr;
-		mask	 = flags_mask;
-		mask_on	 = flags_mask;
+		value = flags_ptr;
+		mask = flags_mask;
+		mask_on = flags_mask;
 		mask_off = flags_mask;
 	}
 };
 
-class uconsole
+struct cmd_float_struct_a1 : public uconsole_command_a1 {
+	float* value; // float pointer
+	float min;
+	float max;
+
+	void construct(uconsole_command_vtbl* vtable_ptr, const char* name, float* float_ptr, float _min, float _max, uconsole_cm_type_a1 type)
+	{
+		__vftable = vtable_ptr;
+
+		_name = name;
+		_type = type;
+		_enabled = true;
+		_lower_case_args = true;
+		_empty_args_handled = false;
+		_option = false;
+
+		value = float_ptr;
+		min = _min;
+		max = _max;
+	}
+};
+
+struct cmd_integer_struct_a1 : public uconsole_command_a1 {
+	int* value; // int pointer
+	int min;
+	int max;
+
+	void construct(uconsole_command_vtbl* vtable_ptr, const char* name, int* int_ptr, int _min, int _max, uconsole_cm_type_a1 type)
+	{
+		__vftable = vtable_ptr;
+
+		_name = name;
+		_type = type;
+		_enabled = true;
+		_lower_case_args = true;
+		_empty_args_handled = false;
+		_option = false;
+
+		value = int_ptr;
+		min = _min;
+		max = _max;
+	}
+};
+
+struct cmd_executor_struct_a1 : public uconsole_command_a1 {
+	void construct(uconsole_command_vtbl* vtable_ptr_dst, uconsole_command_vtbl* vtable_ptr_src, const char* name, void* executor_ptr)
+	{
+		__vftable = vtable_ptr_dst;
+
+		__vftable->__vftable	= vtable_ptr_src->__vftable;
+		__vftable->execute		= executor_ptr;
+		__vftable->status		= vtable_ptr_src->status;
+		__vftable->info			= vtable_ptr_src->info;
+		__vftable->enum_values	= vtable_ptr_src->enum_values;
+		__vftable->save			= vtable_ptr_src->save;
+		__vftable->enabled		= vtable_ptr_src->enabled;
+
+		if(Utils::isExodus())
+			((uconsole_command_exodus_vtbl*)__vftable)->_unk1 = ((uconsole_command_exodus_vtbl*)vtable_ptr_src)->_unk1;
+
+		_name				= name;
+		_type				= uconsole_cm_type_a1::cm_user;
+		_enabled			= true;
+		_lower_case_args	= true;
+		_empty_args_handled = true;
+		_option				= false;
+	}
+};
+#endif
+
+typedef void(__thiscall* _cmd_mask) (void* cmd_mask, const char* name, void* value, unsigned int mask, bool save);
+
+class uconsole : Patcher
 {
 private:
 	void** console = nullptr;
-	void* cmd_mask_address = nullptr;
 
 public:
-	uconsole(void** console, void* cmd_mask_address);
+	uconsole(void** console);
 
-	void cmd_mask(void* cmd_mask, const char* name, void* value, unsigned int mask, bool isSave);
+	_cmd_mask cmd_mask = nullptr;
+
 	void command_add(void* C);
 };
 

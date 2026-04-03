@@ -1,3 +1,4 @@
+#ifndef _WIN64
 #include <stdlib.h>
 #include <string.h>
 #include "mfile.h"
@@ -171,4 +172,4 @@ int mfwrite_float(float val, MFILE *f)
 {
 	return mfwrite(&val, sizeof(val), f);
 }
-
+#endif

@@ -1,3 +1,4 @@
+#ifndef _WIN64
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -221,3 +222,4 @@ const char *getAttribute_stringz(TOKNode *node, const char *name, const char *de
 	
 	return def;
 }
+#endif

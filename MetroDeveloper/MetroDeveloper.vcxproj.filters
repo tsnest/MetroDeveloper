@@ -37,9 +37,15 @@
     <Filter Include="Заголовочные файлы\patches\Arktika1">
       <UniqueIdentifier>{527af1fd-825c-415b-90fc-21bc9d0b45fe}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Заголовочные файлы\navmap">
+      <UniqueIdentifier>{cdeab69b-b2de-460d-97af-e88dbd546b96}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы исходного кода\navmap">
+      <UniqueIdentifier>{0202ed9f-0673-4a4f-b88c-34d7ca579209}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dllmain.cpp">
+    <ClCompile Include="DllMain.cpp">
       <Filter>Файлы исходного кода</Filter>
     </ClCompile>
     <ClCompile Include="MinHook\hook.c">
@@ -56,18 +62,6 @@
     </ClCompile>
     <ClCompile Include="MinHook\hde\hde64.c">
       <Filter>Файлы исходного кода\MinHook\hde</Filter>
-    </ClCompile>
-    <ClCompile Include="model.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="tok_file.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="mfile.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="tok_test.cpp">
-      <Filter>Файлы исходного кода</Filter>
     </ClCompile>
     <ClCompile Include="uconsole.cpp">
       <Filter>Файлы исходного кода</Filter>
@@ -117,9 +111,6 @@
     <ClCompile Include="NavMapGen.cpp">
       <Filter>Файлы исходного кода\patches</Filter>
     </ClCompile>
-    <ClCompile Include="MemoryStreamImpl.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
     <ClCompile Include="ShadersHack.cpp">
       <Filter>Файлы исходного кода\patches\Arktika1</Filter>
     </ClCompile>
@@ -135,13 +126,34 @@
     <ClCompile Include="DisableFiltersCostMod.cpp">
       <Filter>Файлы исходного кода\patches</Filter>
     </ClCompile>
+    <ClCompile Include="SmallFontReplacer2033.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="wpn_bobbing_la.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="navmap\MemoryStreamImpl.cpp">
+      <Filter>Файлы исходного кода\navmap</Filter>
+    </ClCompile>
+    <ClCompile Include="navmap\mfile.c">
+      <Filter>Файлы исходного кода\navmap</Filter>
+    </ClCompile>
+    <ClCompile Include="navmap\model.cpp">
+      <Filter>Файлы исходного кода\navmap</Filter>
+    </ClCompile>
+    <ClCompile Include="navmap\tok_file.c">
+      <Filter>Файлы исходного кода\navmap</Filter>
+    </ClCompile>
+    <ClCompile Include="navmap\tok_test.cpp">
+      <Filter>Файлы исходного кода\navmap</Filter>
+    </ClCompile>
+    <ClCompile Include="BugTrap.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="i_pathengine.h">
-      <Filter>Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="MinHook.h">
-      <Filter>Заголовочные файлы</Filter>
+    <ClInclude Include="MinHook\MinHook.h">
+      <Filter>Заголовочные файлы\MinHook</Filter>
     </ClInclude>
     <ClInclude Include="MinHook\buffer.h">
       <Filter>Заголовочные файлы\MinHook</Filter>
@@ -163,15 +175,6 @@
     </ClInclude>
     <ClInclude Include="MinHook\hde\table64.h">
       <Filter>Заголовочные файлы\MinHook\hde</Filter>
-    </ClInclude>
-    <ClInclude Include="model.hpp">
-      <Filter>Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="tok_file.h">
-      <Filter>Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="mfile.h">
-      <Filter>Заголовочные файлы</Filter>
     </ClInclude>
     <ClInclude Include="uconsole.h">
       <Filter>Заголовочные файлы</Filter>
@@ -221,9 +224,6 @@
     <ClInclude Include="NavMapGen.h">
       <Filter>Заголовочные файлы\patches</Filter>
     </ClInclude>
-    <ClInclude Include="MemoryStreamImpl.h">
-      <Filter>Заголовочные файлы</Filter>
-    </ClInclude>
     <ClInclude Include="ShadersHack.h">
       <Filter>Заголовочные файлы\patches\Arktika1</Filter>
     </ClInclude>
@@ -239,6 +239,30 @@
     <ClInclude Include="DisableFiltersCostMod.h">
       <Filter>Заголовочные файлы\patches</Filter>
     </ClInclude>
+    <ClInclude Include="SmallFontReplacer2033.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="wpn_bobbing_la.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="navmap\i_pathengine.h">
+      <Filter>Заголовочные файлы\navmap</Filter>
+    </ClInclude>
+    <ClInclude Include="navmap\MemoryStreamImpl.h">
+      <Filter>Заголовочные файлы\navmap</Filter>
+    </ClInclude>
+    <ClInclude Include="navmap\mfile.h">
+      <Filter>Заголовочные файлы\navmap</Filter>
+    </ClInclude>
+    <ClInclude Include="navmap\model.hpp">
+      <Filter>Заголовочные файлы\navmap</Filter>
+    </ClInclude>
+    <ClInclude Include="navmap\tok_file.h">
+      <Filter>Заголовочные файлы\navmap</Filter>
+    </ClInclude>
+    <ClInclude Include="BugTrap.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="ArktikaWalkingHack.asm">
@@ -247,8 +271,10 @@
     <MASM Include="LoadNavMapHack.asm">
       <Filter>Файлы исходного кода</Filter>
     </MASM>
-    <MASM Include="CantFindTextureLog.asm">
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="TODO.txt">
       <Filter>Файлы исходного кода</Filter>
-    </MASM>
+    </Text>
   </ItemGroup>
 </Project>

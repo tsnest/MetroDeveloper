@@ -1,3 +1,4 @@
+#ifndef _WIN64
 #include "MemoryStreamImpl.h"
 
 extern void convert_tok_to_bin(const void* tok_data, size_t tok_size, void** bin_data, size_t* bin_size, int _debug);
@@ -56,3 +57,4 @@ void MemoryStreamImpl::putFloat(float value)
 {
 	put((char*)&value, sizeof(value));
 }
+#endif

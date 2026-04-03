@@ -1,3 +1,4 @@
+#ifndef _WIN64
 #include <stdio.h>
 #include "model.hpp"
 
@@ -153,3 +154,4 @@ int FaceVertexMeshImpl::addPoint(Vec3f &p)
 	m_points.push_back(p);
 	return m_points.size()-1;
 }
+#endif

@@ -1,3 +1,4 @@
+#ifndef _WIN64
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -701,4 +702,4 @@ void convert_tok_to_bin(const void *tok_data, size_t tok_size, void **bin_data, 
 	
 	mfclose(ground);
 }
-
+#endif

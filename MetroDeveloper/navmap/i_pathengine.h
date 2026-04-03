@@ -8,6 +8,7 @@
 //
 //**********************************************************************
 
+#ifndef _WIN64 // TSNest ONLY x64
 #ifndef PATHENGINE_INTERFACE_HAS_BEEN_INCLUDED
 #define PATHENGINE_INTERFACE_HAS_BEEN_INCLUDED
 
@@ -676,3 +677,4 @@ public:
 };
 
 #endif // ends file include guard
+#endif // TSNest ONLY x64

@@ -1,11 +1,11 @@
 #define _CRT_SECURE_NO_WARNINGS 1
 
 #include <windows.h>
+#include "stdio.h"
 
 #include "Patcher.h"
 #include "Utils.h"
 #include "Hooks.h"
-#include "NoVideocardMsg.h"
 #include "BadQuitReset.h"
 #include "NoIntro.h"
 #include "ConsoleUnlocker.h"
@@ -16,17 +16,40 @@
 #include "QuickSave.h"
 #include "Fly.h"
 #include "LogFile.h"
-#include "NavMapGen.h"
-#include "DisableFiltersCostMod.h"
 
 #ifdef _WIN64
 #include "MenuHack.h"
 #include "WeaponHack.h"
 #include "UpgradesHack.h"
 #include "ShadersHack.h"
+
+#include "DisableFiltersCostMod.h"
+
+#else
+
+#include "NavMapGen.h"
+#include "NoVideocardMsg.h"
+#include "wpn_bobbing_la.h"
+#include "SmallFontReplacer2033.h"
 #endif
 
-#include "stdio.h"
+typedef HRESULT (WINAPI* _DirectInput8Create)(HINSTANCE hinst, DWORD dwVersion, REFIID riidltf, LPVOID* ppvOut, LPUNKNOWN punkOuter);
+
+#pragma comment(linker, "/export:DirectInput8Create@20=DirectInput8Create")
+extern "C" __declspec(dllexport) HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, REFIID riidltf, LPVOID* ppvOut, LPUNKNOWN punkOuter)
+{
+	char path[MAX_PATH];
+	GetSystemDirectory(path, MAX_PATH);
+	strcat(path, "\\dinput8.dll");
+
+	HMODULE dinput8 = LoadLibrary(path);
+	_DirectInput8Create DirectInput8Create_O = (_DirectInput8Create) GetProcAddress(dinput8, "DirectInput8Create");
+
+	// удаляем старую asi версию
+	DeleteFile("MetroDeveloper.asi");
+
+	return DirectInput8Create_O(hinst, dwVersion, riidltf, ppvOut, punkOuter);
+}
 
 BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 {
@@ -42,7 +65,6 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 		Patcher::mi = Patcher::GetModuleData(NULL);
 		Utils::Utils();
 
-		DisableFiltersCostMod::DisableFiltersCostMod();
 		BadQuitReset::BadQuitReset();
 		NoIntro::NoIntro();
 		AllowDDS::AllowDDS();
@@ -54,9 +76,13 @@ BOOL APIENTRY DllMain(HINSTANCE hInstDLL, DWORD reason, LPVOID reserved)
 
 #ifndef _WIN64
 		NoVideocardMsg::NoVideocardMsg();
+		SmallFontReplacer2033::SmallFontReplacer2033();
+		install_wpn_bobbing();
 		NavMapGen::NavMapGen();
 #else
-		if (Utils::GetGame() == GAME::ARKTIKA) {
+		DisableFiltersCostMod::DisableFiltersCostMod();
+
+		if (Utils::isArktika()) {
 			MenuHack::MenuHack();
 			ShadersHack::ShadersHack();
 			UpgradesHack::UpgradesHack();

@@ -1,3 +1,4 @@
+#ifndef _WIN64
 #ifndef __MFILE_H__
 #define __MFILE_H__
 
@@ -37,4 +38,5 @@ int mfwrite_short(short val, MFILE *f);
 int mfwrite_int(int val, MFILE *f);
 int mfwrite_float(float val, MFILE *f);
 
+#endif
 #endif

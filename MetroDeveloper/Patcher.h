@@ -1,5 +1,5 @@
 #pragma once
-#define _CRT_SECURE_NO_WARNINGS 1 // MSVS dno
+#define _CRT_SECURE_NO_WARNINGS 1
 
 #include <Windows.h>
 
@@ -11,20 +11,20 @@ class Patcher
 {
 public:
 	static MODULEINFO mi;
-	static MODULEINFO GetModuleData(const char* moduleName);
+	static MODULEINFO GetModuleData(char* moduleName);
 
 private:
-	static bool DataCompare(const BYTE* pData, const BYTE* pattern, const char* mask);
+	static bool DataCompare(BYTE* pData, BYTE* pattern, char* mask);
 
 protected:
 #ifdef _WIN64
-	static DWORD64 FindPattern(DWORD64 start_address, DWORD64 length, BYTE* pattern, const char* mask);
-	static DWORD64 FindPatternInEXE(BYTE* pattern, char* mask);
+	static DWORD64 FindPattern(DWORD64 start_address, DWORD64 length, char* pattern, char* mask);
+	static DWORD64 FindPatternInEXE(char* pattern, char* mask);
 #else
-	static DWORD FindPattern(DWORD start_address, DWORD length, BYTE* pattern, const char* mask);
-	static DWORD FindPatternInEXE(BYTE* pattern, char* mask);
+	static DWORD FindPattern(DWORD start_address, DWORD length, char* pattern, char* mask);
+	static DWORD FindPatternInEXE(char* pattern, char* mask);
 #endif
 
-	void ASMWrite(void* address, BYTE* code, size_t size);
+	static void ASMWrite(void* address, BYTE* code, size_t size);
 };
 

@@ -1,3 +1,4 @@
+#ifndef _WIN64
 #ifndef __MODEL_HPP__
 #define __MODEL_HPP__
 
@@ -53,4 +54,5 @@ class FaceVertexMeshImpl : public iFaceVertexMesh
 	int addPoint(Vec3f &p);
 };
 
+#endif
 #endif

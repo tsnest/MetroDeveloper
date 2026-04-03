@@ -5,6 +5,11 @@ class Fly : public Patcher
 {
 public:
 	Fly();
+
+	static float refly_speed;
+	static unsigned int refly_cycles;
+
+	static void fly(const char* name, bool refly, float refly_speed, unsigned int refly_cycles);
 	static void clevel_r_on_key_press(int action, int key, int state, int resending);
 
 #ifdef _WIN64
