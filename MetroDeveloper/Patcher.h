@@ -10,10 +10,10 @@
 class Patcher
 {
 public:
-	static MODULEINFO mi;
 	static MODULEINFO GetModuleData(char* moduleName);
 
 private:
+	static MODULEINFO mi;
 	static bool DataCompare(BYTE* pData, BYTE* pattern, char* mask);
 
 protected:

@@ -31,7 +31,7 @@ class Hooks : public Patcher
 {
 public:
 	Hooks();
-	void SetHook(char* hookName, void* pTarget, void* pDetour, void* ppOriginal);
+	static void SetHook(char* hookName, void* pTarget, void* pDetour, void* ppOriginal);
 
 	static void cmd_register_commands_Hook();
 	static void __fastcall slog_Hook(const char* s);

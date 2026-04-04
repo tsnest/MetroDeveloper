@@ -1,6 +1,6 @@
 #include "Patcher.h"
 
-MODULEINFO Patcher::mi;
+MODULEINFO Patcher::mi = Patcher::GetModuleData(NULL);
 
 #ifdef _WIN64
 DWORD64 Patcher::FindPattern(DWORD64 start_address, DWORD64 length, char* pattern, char* mask)

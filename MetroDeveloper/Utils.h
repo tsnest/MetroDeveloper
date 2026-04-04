@@ -41,6 +41,8 @@ public:
 	static GAME Game;
 	static GAME GetGame();
 
+	static bool isInited;
+
 	static _rlog rlog;
 	static _GetConsole GetConsole;
 	static void** g_string_container;
