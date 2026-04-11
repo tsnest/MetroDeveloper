@@ -38,7 +38,7 @@ cmd_executor_struct_a1 refly_new;
 cmd_executor_struct_a1 signal_new;
 
 DWORD64 igame_level_signal;
-_unknown_exodus unknown_exodus;
+_payload_exodus payload_exodus;
 int* refly_default_cycles_exodus = nullptr;
 float* refly_default_speed_exodus = nullptr;
 
@@ -102,24 +102,24 @@ RestoreCommands::RestoreCommands()
 		}
 		else if (Utils::isExodus()) {
 			DWORD64 call_igame_level_signal;
-			DWORD64 call_unknown_exodus;
+			DWORD64 call_payload_exodus;
 
 			if (Utils::isExodusPatched) {
 				// E8 ? ? ? ? 40 88 35
 				call_igame_level_signal = FindPatternInEXE("\xE8\x00\x00\x00\x00\x40\x88\x35", "x????xxx");
 
 				// E8 ? ? ? ? 4C 8B 38
-				call_unknown_exodus = FindPatternInEXE("\xE8\x00\x00\x00\x00\x4C\x8B\x38", "x????xxx");
+				call_payload_exodus = FindPatternInEXE("\xE8\x00\x00\x00\x00\x4C\x8B\x38", "x????xxx");
 			} else {
 				// E8 ? ? ? ? E9 ? ? ? ? 48 8D 51 14
 				call_igame_level_signal = FindPatternInEXE("\xE8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x48\x8D\x51\x14", "x????x????xxxx");
 
 				// E8 ? ? ? ? 4C 89 65 58
-				call_unknown_exodus = FindPatternInEXE("\xE8\x00\x00\x00\x00\x4C\x89\x65\x58", "x????xxxx");
+				call_payload_exodus = FindPatternInEXE("\xE8\x00\x00\x00\x00\x4C\x89\x65\x58", "x????xxxx");
 			}
 
 			igame_level_signal = Utils::GetAddrFromRelativeInstr(call_igame_level_signal, 5, 1);
-			unknown_exodus = (_unknown_exodus) Utils::GetAddrFromRelativeInstr(call_unknown_exodus, 5, 1);
+			payload_exodus = (_payload_exodus) Utils::GetAddrFromRelativeInstr(call_payload_exodus, 5, 1);
 		}
 #endif
 	}
@@ -139,7 +139,7 @@ void __thiscall RestoreCommands::signal_execute(void* _this, const char* name)
 	} else if (Utils::isArktika()) {
 		((_igame_level_signal_a1)igame_level_signal)(NULL, &s, NULL, 0);
 	} else {
-		((_igame_level_signal_ex)igame_level_signal)(NULL, &s, NULL, 0, unknown_exodus());
+		((_igame_level_signal_ex)igame_level_signal)(NULL, &s, NULL, 0, payload_exodus());
 	}
 	
 #else

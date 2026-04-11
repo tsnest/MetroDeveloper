@@ -37,8 +37,8 @@ struct uconsole_server_exodus {
 	void* _console;
 
 	void* render;
+	void* render_finder; // Exodus
 	void* on_frame; // Redux
-	void* unk1; // Exodus
 	_command_add command_add;
 	void* command_remove;
 	void* command_find;
@@ -68,7 +68,9 @@ struct uconsole_command_vtbl {
 
 #ifdef _WIN64
 struct uconsole_command_exodus_vtbl : public uconsole_command_vtbl {
-	void* _unk1;
+	// данная фигня появилась в каком то из dlc исхода
+	// но ничего страшного не произойдёт, если эту структуру мы будем юзать в версии без dlc
+	void* default_storage;
 };
 #endif
 

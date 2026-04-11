@@ -5,8 +5,8 @@
 #ifdef _WIN64
 typedef void* (__fastcall* _igame_level_signal)(void* _unused, void** str_shared, void* parent, const int relatives);
 typedef void (__fastcall* _igame_level_signal_a1)(void* _unused, void** str_shared, void* parent, const int relatives);
-typedef void (__fastcall* _igame_level_signal_ex)(void* _unused, void** str_shared, void* parent, const int relatives, void* _unknown);
-typedef void* (__fastcall* _unknown_exodus)();
+typedef void (__fastcall* _igame_level_signal_ex)(void* _unused, void** str_shared, void* parent, const int relatives, void* payload);
+typedef void* (__fastcall* _payload_exodus)();
 
 #else
 
