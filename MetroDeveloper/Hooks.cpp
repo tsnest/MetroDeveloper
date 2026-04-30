@@ -10,6 +10,7 @@
 #include "NavMapGen.h"
 #include "wpn_bobbing_la.h"
 #include "BugTrap.h"
+#include "MultiplayerFix.h"
 
 #define OTHER "other"
 
@@ -41,6 +42,8 @@ _vfs_package_registry_find vfs_package_registry_find = nullptr;
 void** vfs = nullptr;
 
 #else
+
+bool g_multiplayer_fix = false;
 
 void* vfs_ropen_package_Orig	 = nullptr;
 void* vfs_rbuffered_package_Orig = nullptr;
@@ -190,6 +193,10 @@ tyda:
 	DWORD64 clevel_r_on_key_press_Address = NULL;
 
 	if (Utils::isRedux()) {
+		if (!Utils::isReduxEGS) {
+			g_multiplayer_fix = Utils::GetBool(OTHER, "multiplayer_fix", false);
+		}
+
 		// 40 53 55 56 57 48 83 EC ? 48 8B F1 - Redux STEAM
 		clevel_r_on_key_press_Address = FindPatternInEXE("\x40\x53\x55\x56\x57\x48\x83\xEC\x00\x48\x8B\xF1", "xxxxxxxx?xxx");
 
@@ -460,6 +467,21 @@ tyda:
 		}
 	}
 
+	if (Utils::isRedux() && !Utils::isReduxEGS && Utils::GetBool(OTHER, "multiplayer_fix", false)) {
+		// 48 8B C4 55 41 54 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 45 33 E4 4C 8B F9 66 44 3B A1 ? ? ? ? 0F 84 ? ? ? ? 48 89 58 E0 4C 89 68 C8 49 83 CD FF 66 66 0F 1F 84 00 - Redux STEAM
+		void* net_core_update_input_Address = (void*)FindPatternInEXE(
+			"\x48\x8B\xC4\x55\x41\x54\x41\x57\x48\x8D\xA8\x00\x00\x00\x00\x48\x81\xEC\x00\x00\x00\x00\x45\x33\xE4\x4C\x8B\xF9\x66\x44\x3B\xA1\x00\x00\x00\x00\x0F\x84\x00\x00\x00\x00\x48\x89\x58\xE0\x4C\x89\x68\xC8\x49\x83\xCD\xFF\x66\x66\x0F\x1F\x84\x00",
+			"xxxxxxxxxxx????xxx????xxxxxxxxxx????xx????xxxxxxxxxxxxxxxxxx");
+
+		// 48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 54 41 56 41 57 48 83 EC 40 4C 8B F2 44 8B F9 E8 ? ? ? ? 33 FF 48 8B D8 48 89 44 24 ? 48 85 C0 74 13 - Redux STEAM
+		void* send_props_pack_Address = (void*)FindPatternInEXE(
+			"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x56\x57\x41\x54\x41\x56\x41\x57\x48\x83\xEC\x40\x4C\x8B\xF2\x44\x8B\xF9\xE8\x00\x00\x00\x00\x33\xFF\x48\x8B\xD8\x48\x89\x44\x24\x00\x48\x85\xC0\x74\x13",
+			"xxxx?xxxx?xxxxxxxxxxxxxxxxxxx????xxxxxxxxx?xxxxx");
+
+		SetHook("net_core::update_input", net_core_update_input_Address, &MultiplayerFix::net_core_update_input_Hook, &MultiplayerFix::net_core_update_input_Orig);
+		SetHook("send_props_pack", send_props_pack_Address, &MultiplayerFix::send_props_pack_Hook, &MultiplayerFix::send_props_pack_Orig);
+	}
+
 	///////////////////////////////////////////////////////////////
 #endif
 }
@@ -526,6 +548,10 @@ void __fastcall Hooks::clevel_r_on_key_press_Hook(void* _this, int action, int k
 
 	if (g_unlock_3rd_person_camera) {
 		Unlock3rdPerson::clevel_r_on_key_press(_this, action, key, state, resending);
+	}
+
+	if (g_multiplayer_fix && Utils::isRedux() && !Utils::isReduxEGS && key == 48) { // респавн на клавишу B английскую
+		Utils::signal("mp_respawn");
 	}
 
 	typedef void(__thiscall* _clevel_r_on_key_press)(void* _this, int action, int key, int state, int resending);

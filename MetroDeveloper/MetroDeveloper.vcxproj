@@ -151,6 +151,8 @@
     <ClCompile Include="AllowDDS.cpp" />
     <ClCompile Include="BadQuitReset.cpp" />
     <ClCompile Include="BugTrap.cpp" />
+    <ClCompile Include="DisableStartupCheck.cpp" />
+    <ClCompile Include="MultiplayerFix.cpp" />
     <ClCompile Include="SmallFontReplacer2033.cpp" />
     <ClCompile Include="ConsoleUnlocker.cpp" />
     <ClCompile Include="ContentUnlocker.cpp" />
@@ -201,6 +203,8 @@
     <ClInclude Include="AllowDDS.h" />
     <ClInclude Include="BadQuitReset.h" />
     <ClInclude Include="BugTrap.h" />
+    <ClInclude Include="DisableStartupCheck.h" />
+    <ClInclude Include="MultiplayerFix.h" />
     <ClInclude Include="SmallFontReplacer2033.h" />
     <ClInclude Include="ConsoleUnlocker.h" />
     <ClInclude Include="ContentUnlocker.h" />

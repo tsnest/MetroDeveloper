@@ -16,6 +16,8 @@
 #include "QuickSave.h"
 #include "Fly.h"
 #include "LogFile.h"
+#include "DisableStartupCheck.h"
+#include "MultiplayerFix.h"
 
 #ifdef _WIN64
 #include "MenuHack.h"
@@ -61,6 +63,8 @@ void InitMetroDeveloper()
 	NavMapGen::NavMapGen();
 #else
 	DisableFiltersCostMod::DisableFiltersCostMod();
+	//DisableStartupCheck::DisableStartupCheck();
+	MultiplayerFix::MultiplayerFix();
 
 	if (Utils::isArktika()) {
 		MenuHack::MenuHack();

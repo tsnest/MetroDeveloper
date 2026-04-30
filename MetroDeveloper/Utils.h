@@ -14,11 +14,20 @@ typedef char string256[256];
 
 typedef void* (__fastcall* _str_container_do_dock)(void* _this, const char* value, unsigned int s_len, unsigned __int16 s_type);
 
+// Modera: 'parent' is used for localus signals (non-interesting for us)
+typedef void* (__fastcall* _igame_level_signal)(void* _unused, void** str_shared, void* parent, const int relatives);
+typedef void (__fastcall* _igame_level_signal_a1)(void* _unused, void** str_shared, void* parent, const int relatives);
+typedef void (__fastcall* _igame_level_signal_ex)(void* _unused, void** str_shared, void* parent, const int relatives, void* payload);
+typedef void* (__fastcall* _payload_exodus)();
+
 #else
 
 typedef void* (__stdcall* _str_container_do_dock_2033)(const char* value);
 typedef void* (__thiscall* _str_container_do_dock_LL)(void* _this, const char* value, __int16 s_type);
 
+// Modera: static function, so no 'this'
+typedef void (__stdcall* _igame_level_signal_2033)(void** str_shared, int parent);
+typedef void* (__stdcall* _igame_level_signal_LL)(void** str_shared, void* parent, const int relatives);
 #endif
 
 enum GAME
@@ -63,6 +72,8 @@ public:
 	static UINT* engine_time__global_ms;
 	static float* slowmo_scale_debug;
 	static _str_container_do_dock str_container_do_dock;
+	static DWORD64 igame_level_signal;
+	static _payload_exodus payload_exodus;
 
 	static UINT GetTimeGlobalMS();
 	static DWORD64 GetGLevel();
@@ -85,6 +96,7 @@ public:
 	static DWORD* g_game;
 	static float* delta_f;
 	static void* str_container_do_dock;
+	static DWORD igame_level_signal;
 
 	static DWORD GetGLevel();
 	static DWORD GetGGame();
@@ -92,6 +104,7 @@ public:
 #endif
 
 	static void* str_shared(const char* str);
+	static void signal(const char* str);
 
 	static void GetString(const char* section_name, const char* str_name, const char* default_str, char* result, DWORD size);
 	static bool GetBool(const char* section_name, const char* bool_name, bool default_bool);

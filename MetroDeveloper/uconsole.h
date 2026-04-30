@@ -315,7 +315,7 @@ struct cmd_executor_struct_a1 : public uconsole_command_a1 {
 		__vftable->enabled		= vtable_ptr_src->enabled;
 
 		if(Utils::isExodus())
-			((uconsole_command_exodus_vtbl*)__vftable)->_unk1 = ((uconsole_command_exodus_vtbl*)vtable_ptr_src)->_unk1;
+			((uconsole_command_exodus_vtbl*)__vftable)->default_storage = ((uconsole_command_exodus_vtbl*)vtable_ptr_src)->default_storage;
 
 		_name				= name;
 		_type				= uconsole_cm_type_a1::cm_user;

@@ -150,6 +150,12 @@
     <ClCompile Include="BugTrap.cpp">
       <Filter>Файлы исходного кода\patches</Filter>
     </ClCompile>
+    <ClCompile Include="MultiplayerFix.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
+    <ClCompile Include="DisableStartupCheck.cpp">
+      <Filter>Файлы исходного кода\patches</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MinHook\MinHook.h">
@@ -261,6 +267,12 @@
       <Filter>Заголовочные файлы\navmap</Filter>
     </ClInclude>
     <ClInclude Include="BugTrap.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="MultiplayerFix.h">
+      <Filter>Заголовочные файлы\patches</Filter>
+    </ClInclude>
+    <ClInclude Include="DisableStartupCheck.h">
       <Filter>Заголовочные файлы\patches</Filter>
     </ClInclude>
   </ItemGroup>

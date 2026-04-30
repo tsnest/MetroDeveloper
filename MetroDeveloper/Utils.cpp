@@ -18,6 +18,8 @@ DWORD64* Utils::g_entities;
 UINT* Utils::engine_time__global_ms;
 float* Utils::slowmo_scale_debug;
 _str_container_do_dock Utils::str_container_do_dock = nullptr;
+DWORD64 Utils::igame_level_signal = NULL;
+_payload_exodus Utils::payload_exodus = nullptr;
 
 #else
 
@@ -27,6 +29,7 @@ DWORD* Utils::g_level;
 DWORD* Utils::g_game;
 float* Utils::delta_f;
 void* Utils::str_container_do_dock = nullptr;
+DWORD Utils::igame_level_signal = nullptr;
 
 #endif
 
@@ -136,6 +139,11 @@ Utils::Utils()
 				mov_g_string_container = FindPatternInEXE(
 					"\x48\x8B\x0D\x00\x00\x00\x00\x48\x8D\x54\x24\x00\x45\x33\xC9\x44\x8B\xC0\xE8\x00\x00\x00\x00\x48\x8B\x4F\x08\x48\x85\xC9\x74\x04\xF0\xFF\x49\x08",
 					"xxx????xxxx?xxxxxxx????xxxxxxxxxxxxx");
+
+				// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 41 56 41 57 48 83 EC 30 48 8B 2D ? ? ? ? 45 8B F1 4D 8B F8 48 8B FA FF 15 - Redux STEAM
+				igame_level_signal = FindPatternInEXE(
+					"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x57\x41\x56\x41\x57\x48\x83\xEC\x30\x48\x8B\x2D\x00\x00\x00\x00\x45\x8B\xF1\x4D\x8B\xF8\x48\x8B\xFA\xFF\x15",
+					"xxxx?xxxx?xxxx?xxxxxxxxxxxx????xxxxxxxxxxx");
 			} else {
 				isReduxEGS = true;
 
@@ -148,6 +156,11 @@ Utils::Utils()
 				mov_g_string_container = FindPatternInEXE(
 					"\x48\x8B\x0D\x00\x00\x00\x00\x44\x38\x7C\x24\x00\x75\x0E\x48\x8B\x41\x50\xF0\xFF\x40\x08\x48\x8B\x41\x50\xEB\x1E\x48\x8D\x44\x24\x00\x48\xFF\xC6",
 					"xxx????xxxx?xxxxxxxxxxxxxxxxxxxx?xxx");
+
+				// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 30 48 8B 3D ? ? ? ? 41 8B E9 4D 8B F0 48 8B F2 FF 15 - Redux EGS
+				igame_level_signal = FindPatternInEXE(
+					"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x30\x48\x8B\x3D\x00\x00\x00\x00\x41\x8B\xE9\x4D\x8B\xF0\x48\x8B\xF2\xFF\x15",
+					"xxxx?xxxx?xxxx?xxxx?xxxxxxxxx????xxxxxxxxxxx");
 			}
 
 			// 48 89 5c 24 ? 48 89 6c 24 ? 48 89 74 24 ? 57 41 54 41 55 41 56 41 57 48 83 ec ? 48 8b 41 ? 45 0f b7 e1 - Redux STEAM & EGS
@@ -185,10 +198,18 @@ Utils::Utils()
 				"xxx????xxxx?xxxxx????xxxxxxx????xxxxxx?xxxxx");
 
 			g_string_container = (void**)GetAddrFromRelativeInstr(mov_g_string_container, 7, 3);
+
+			// 48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 56 48 83 EC 30 C7 44 24 ? ? ? ? ? 41 8B F1 4C 8B 35 ? ? ? ? 49 8B E8 48 8B FA FF 15 - Arktika
+			igame_level_signal = FindPatternInEXE(
+				"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x56\x57\x41\x56\x48\x83\xEC\x30\xC7\x44\x24\x00\x00\x00\x00\x00\x41\x8B\xF1\x4C\x8B\x35\x00\x00\x00\x00\x49\x8B\xE8\x48\x8B\xFA\xFF\x15",
+				"xxxx?xxxx?xxxxxxxxxxx?????xxxxxx????xxxxxxxx");
 		}
 	}
 	else if (GetModuleHandle("MetroExodus.exe") != NULL) {
 		Game = GAME::EXODUS;
+
+		DWORD64 call_igame_level_signal;
+		DWORD64 call_payload_exodus;
 
 		// 48 8B C4 48 89 48 08 48 89 50 10 4C 89 40 18 4C 89 48 20 53 57 48 81 EC ? ? ? ? 48 8B D9 C6 44 24 ? ? 48 8D 78 10 E8 ? ? ? ? 48 89 7C 24 ? 48 8D 54 24 - Exodus NEW
 		Utils::rlog = (_rlog)FindPatternInEXE(
@@ -259,14 +280,28 @@ Utils::Utils()
 
 				// вычисляем адрес и получаем slowmo_scale_debug
 				slowmo_scale_debug = (float*)GetAddrFromRelativeInstr(mulss, 8, 4);
+
+				// E8 ? ? ? ? 40 88 35 - Exodus NEW
+				call_igame_level_signal = FindPatternInEXE("\xE8\x00\x00\x00\x00\x40\x88\x35", "x????xxx");
+
+				// E8 ? ? ? ? 4C 8B 38 - Exodus NEW
+				call_payload_exodus = FindPatternInEXE("\xE8\x00\x00\x00\x00\x4C\x8B\x38", "x????xxx");
 			} else {
 				// 48 8B 0D ? ? ? ? 45 33 C9 89 7C 24 30 - Exodus OLD
 				mov_g_string_container = FindPatternInEXE(
 					"\x48\x8B\x0D\x00\x00\x00\x00\x45\x33\xC9\x89\x7C\x24\x30",
 					"xxx????xxxxxxx");
+
+				// E8 ? ? ? ? E9 ? ? ? ? 48 8D 51 14 - Exodus OLD
+				call_igame_level_signal = FindPatternInEXE("\xE8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x48\x8D\x51\x14", "x????x????xxxx");
+
+				// E8 ? ? ? ? 4C 89 65 58 - Exodus OLD
+				call_payload_exodus = FindPatternInEXE("\xE8\x00\x00\x00\x00\x4C\x89\x65\x58", "x????xxxx");
 			}
 
 			g_string_container = (void**)GetAddrFromRelativeInstr(mov_g_string_container, 7, 3);
+			igame_level_signal = Utils::GetAddrFromRelativeInstr(call_igame_level_signal, 5, 1);
+			payload_exodus = (_payload_exodus)Utils::GetAddrFromRelativeInstr(call_payload_exodus, 5, 1);
 		}
 	}
 
@@ -467,6 +502,31 @@ void* Utils::str_shared(const char* str)
 		return ((_str_container_do_dock_2033)str_container_do_dock)(str);
 	} else {
 		return ((_str_container_do_dock_LL)str_container_do_dock)(*g_string_container, str, 0);
+	}
+#endif
+}
+
+void Utils::signal(const char* str)
+{
+	void* s = Utils::str_shared(str);
+
+#ifdef _WIN64
+	if (Utils::isRedux()) {
+		((_igame_level_signal)igame_level_signal)(NULL, &s, NULL, 0);
+	}
+	else if (Utils::isArktika()) {
+		((_igame_level_signal_a1)igame_level_signal)(NULL, &s, NULL, 0);
+	}
+	else {
+		((_igame_level_signal_ex)igame_level_signal)(NULL, &s, NULL, 0, payload_exodus());
+	}
+
+#else
+
+	if (Utils::is2033()) {
+		((_igame_level_signal_2033)igame_level_signal)(&s, 0);
+	} else {
+		((_igame_level_signal_LL)igame_level_signal)(&s, NULL, 0);
 	}
 #endif
 }
