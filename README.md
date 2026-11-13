@@ -23,6 +23,7 @@
 17. Подмена стандартного шрифта в консоли и в режиме stats для оригинальной Metro 2033
 18. Вывод сообщений о ненайденных файлах в консоль и в лог
 19. Возможность включения BugTrap
+20. Отключение появления сообщений о принятии eula и телеметрии в главном меню в Redux NextGen Update.
 
 
 [EN]:
@@ -50,3 +51,4 @@ Features:
 17. Replacement of the default font in the console and stats mode for the original Metro 2033.
 18. Display of messages about missing files in the console and log.
 19. Option to enable BugTrap.
+20. Disabling the EULA acceptance and telemetry prompts in the main menu for the Redux NextGen Update.
