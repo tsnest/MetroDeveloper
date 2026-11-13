@@ -210,6 +210,28 @@ struct cmd_float_struct_ll : public uconsole_command_ll {
 	}
 };
 
+struct cmd_integer_struct_ll : public uconsole_command_ll {
+	int* value; // int pointer
+	int min;
+	int max;
+
+	void construct(uconsole_command_vtbl* vtable_ptr, const char* name, int* int_ptr, int _min, int _max, bool save)
+	{
+		__vftable = vtable_ptr;
+
+		_name				= name;
+		_enabled			= true;
+		_lower_case_args	= true;
+		_empty_args_handled = false;
+		_save				= save;
+		_option				= false;
+
+		value	= int_ptr;
+		min		= _min;
+		max		= _max;
+	}
+};
+
 struct cmd_executor_struct_ll : public uconsole_command_ll {
 	void construct(uconsole_command_vtbl* vtable_ptr_dst, uconsole_command_vtbl* vtable_ptr_src, const char* name, void* executor_ptr)
 	{

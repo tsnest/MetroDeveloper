@@ -17,28 +17,36 @@ ContentUnlocker::ContentUnlocker()
 {
 #ifdef _WIN64
 	if (Utils::isRedux()) {
-		// 48 8B C4 53 55 57 41 56 41 57 48 81 EC - Redux STEAM
-		vfs_ropen_os = (_vfs_ropen_os)FindPatternInEXE(
-			"\x48\x8B\xC4\x53\x55\x57\x41\x56\x41\x57\x48\x81\xEC",
-			"xxxxxxxxxxxxx");
+		if (Utils::isReduxRelease() || Utils::isReduxE3Demo()) {
+			// 48 8B C4 53 55 57 41 56 41 57 48 81 EC - Redux STEAM & E3DEMO
+			vfs_ropen_os = (_vfs_ropen_os)FindPatternInEXE(
+				"\x48\x8B\xC4\x53\x55\x57\x41\x56\x41\x57\x48\x81\xEC",
+				"xxxxxxxxxxxxx");
 
-		if (vfs_ropen_os == NULL) {
+			// 4c 89 44 24 ? 55 53 56 57 41 55 41 56 48 8d 6c 24 - Redux STEAM & E3DEMO
+			asset_manager_load = (void*)FindPatternInEXE(
+				"\x4c\x89\x44\x24\x00\x55\x53\x56\x57\x41\x55\x41\x56\x48\x8d\x6c\x24",
+				"xxxx?xxxxxxxxxxxx");
+		} else if (Utils::isReduxEGS()) {
 			// 48 8B C4 48 89 58 10 55 56 57 41 54 41 57 48 81 EC ? ? ? ? 33 DB 4C 8B F9 48 8D 4C 24 ? 48 89 58 20 48 89 58 18 8B FB 8B F3 E8 - Redux EGS
 			vfs_ropen_os = (_vfs_ropen_os)FindPatternInEXE(
 				"\x48\x8B\xC4\x48\x89\x58\x10\x55\x56\x57\x41\x54\x41\x57\x48\x81\xEC\x00\x00\x00\x00\x33\xDB\x4C\x8B\xF9\x48\x8D\x4C\x24\x00\x48\x89\x58\x20\x48\x89\x58\x18\x8B\xFB\x8B\xF3\xE8",
 				"xxxxxxxxxxxxxxxxx????xxxxxxxxx?xxxxxxxxxxxxx");
-		}
 
-		// 4c 89 44 24 ? 55 53 56 57 41 55 41 56 48 8d 6c 24 - Redux STEAM
-		asset_manager_load = (void*)FindPatternInEXE(
-			"\x4c\x89\x44\x24\x00\x55\x53\x56\x57\x41\x55\x41\x56\x48\x8d\x6c\x24",
-			"xxxx?xxxxxxxxxxxx");
-
-		if (asset_manager_load == NULL) {
 			// 48 89 5C 24 ? 4C 89 44 24 ? 55 56 57 41 55 41 56 48 8D 6C 24 ? 48 81 EC - Redux EGS
 			asset_manager_load = (void*)FindPatternInEXE(
 				"\x48\x89\x5C\x24\x00\x4C\x89\x44\x24\x00\x55\x56\x57\x41\x55\x41\x56\x48\x8D\x6C\x24\x00\x48\x81\xEC",
 				"xxxx?xxxx?xxxxxxxxxxx?xxx");
+		} else if (Utils::isReduxNextGen()) {
+			// 40 53 56 41 57 48 81 EC ? ? ? ? 48 8B F1 45 33 FF 4C 89 39 48 8B DA 48 8D 4C 24 ? E8 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? BA ? ? ? ? 4C 89 7C 24 - Redux NextGen
+			vfs_ropen_os = (_vfs_ropen_os)FindPatternInEXE(
+				"\x40\x53\x56\x41\x57\x48\x81\xEC\x00\x00\x00\x00\x48\x8B\xF1\x45\x33\xFF\x4C\x89\x39\x48\x8B\xDA\x48\x8D\x4C\x24\x00\xE8\x00\x00\x00\x00\x48\x85\xC0\x0F\x84\x00\x00\x00\x00\xBA\x00\x00\x00\x00\x4C\x89\x7C\x24",
+				"xxxxxxxx????xxxxxxxxxxxxxxxx?x????xxxxx????x????xxxx");
+
+			// 48 89 5C 24 ? 4C 89 44 24 ? 55 56 57 41 56 - Redux NextGen
+			asset_manager_load = (void*)FindPatternInEXE(
+				"\x48\x89\x5C\x24\x00\x4C\x89\x44\x24\x00\x55\x56\x57\x41\x56",
+				"xxxx?xxxx?xxxxx");
 		}
 	} else if (Utils::isArktika()) {
 		// 48 8B C4 53 55 56 57 41 56 48 81 EC ? ? ? ? 4C 8B F1 33 DB 48 8D 4C 24 ? 48 89 58 20 48 89 58 18 E8 ? ? ? ? 83 CD FF 48 85 C0 0F 84 ? ? ? ? BA ? ? ? ? 48 89 5C 24 ? 48 8D 4C 24 ? 8B F3 FF 15 ? ? ? ? 89 44 24 20 8B F8 3B C5 75 23 8D 4B 0A - Arktika

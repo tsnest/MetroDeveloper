@@ -11,8 +11,8 @@ typedef void* (__cdecl* _u_platform_initialize_end)();
 
 typedef void* (__fastcall* _vfs_ropen_package)(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size);
 typedef void* (__fastcall* _vfs_ropen_packageExodus)(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size, void* _unknown);
-typedef void (__fastcall* _vfs_rbuffered_package)(void* package, const char* fn, void* cb, const int force_raw);
-typedef void (__fastcall* _vfs_rbuffered_packageExodus)(const char* fn, void* cb);
+typedef void (__fastcall* _vfs_rbuffered_packageOld)(void* package, const char* fn, void* cb);
+typedef void (__fastcall* _vfs_rbuffered_packageNew)(const char* fn, void* cb);
 typedef bool (__fastcall* _vfs_package_registry_level_downloaded)(void* _this, const char* map_name);
 typedef void (__fastcall* _asset_manager_load_all_internal)(void* _this, const int create_progress, DWORD64 _unused, int files);
 typedef void* (__fastcall* _vfs_exists)(const char* fn);
@@ -54,8 +54,8 @@ public:
 
 	static void* __fastcall vfs_ropen_package_Hook(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size);
 	static void* __fastcall vfs_ropen_package_ExodusPatched_Hook(void* result, void* package, const char* fn, const int force_raw, unsigned int* uncompressed_size, void* _unknown);
-	static void __fastcall vfs_rbuffered_package_Hook(void* package, const char* fn, void* cb, const int force_raw);
-	static void __fastcall vfs_rbuffered_package_HookExodus(const char* fn, void* cb);
+	static void __fastcall vfs_rbuffered_package_HookOld(void* package, const char* fn, void* cb);
+	static void __fastcall vfs_rbuffered_package_HookNew(const char* fn, void* cb);
 	static bool __fastcall vfs_package_registry_level_downloaded_Hook(void* _this, const char* map_name);
 	static void __fastcall asset_manager_load_all_internal_Hook(void* _this, const int create_progress, DWORD64 _unused, int files);
 	static void __fastcall u_platform_initialize_end_HookArktika(void* _this);

@@ -9,7 +9,8 @@ GAME Utils::Game;
 
 #ifdef _WIN64
 
-bool Utils::isReduxEGS = false;
+REDUX_VER Utils::Redux_ver;
+
 bool Utils::isExodusPatched = false;
 
 DWORD64* Utils::g_level;
@@ -114,61 +115,43 @@ Utils::Utils()
 	if (GetModuleHandle("metro.exe") != NULL) {
 		Game = GAME::REDUX;
 
-		// 48 8B C4 48 89 48 08 48 89 50 10 4C 89 40 18 4C 89 48 20 48 81 EC ? ? ? ? 4C 8B C1 4C 8D 48 10 48 8D 4C 24 ? BA ? ? ? ? FF 15 ? ? ? ? 33 C9 C6 84 24 ? ? ? ? ? 48 89 4C 24 ? 85 C0 0F 89 ? ? ? ? 48 8B 94 24 ? ? ? ? 48 89 4C 24 - Redux
-		Utils::rlog = (_rlog)FindPatternInEXE(
-			"\x48\x8B\xC4\x48\x89\x48\x08\x48\x89\x50\x10\x4C\x89\x40\x18\x4C\x89\x48\x20\x48\x81\xEC\x00\x00\x00\x00\x4C\x8B\xC1\x4C\x8D\x48\x10\x48\x8D\x4C\x24\x00\xBA\x00\x00\x00\x00\xFF\x15\x00\x00\x00\x00\x33\xC9\xC6\x84\x24\x00\x00\x00\x00\x00\x48\x89\x4C\x24\x00\x85\xC0\x0F\x89\x00\x00\x00\x00\x48\x8B\x94\x24\x00\x00\x00\x00\x48\x89\x4C\x24",
-			"xxxxxxxxxxxxxxxxxxxxxx????xxxxxxxxxxx?x????xx????xxxxx?????xxxx?xxxx????xxxx????xxxx");
+		// 48 8B 0D ? ? ? ? 48 8D 15 ? ? ? ? 88 81 ? ? ? ? 48 85 D2 74 16 48 8B 0D ? ? ? ? 45 33 C9 45 8D 41 0E E8 ? ? ? ? 48 8B F8 48 8D 55 0F - Redux STEAM
+		mov_g_level = FindPatternInEXE(
+			"\x48\x8B\x0D\x00\x00\x00\x00\x48\x8D\x15\x00\x00\x00\x00\x88\x81\x00\x00\x00\x00\x48\x85\xD2\x74\x16\x48\x8B\x0D\x00\x00\x00\x00\x45\x33\xC9\x45\x8D\x41\x0E\xE8\x00\x00\x00\x00\x48\x8B\xF8\x48\x8D\x55\x0F",
+			"xxx????xxx????xx????xxxxxxxx????xxxxxxxx????xxxxxxx");
 
-		if (Utils::rlog != NULL) {
+		if (mov_g_level != NULL) {
 			isInited = true;
+			Utils::Redux_ver = REDUX_VER::RELEASE;
+		} else {
+			// 48 8B 0D ? ? ? ? 48 8D 15 ? ? ? ? 88 81 ? ? ? ? 48 85 D2 74 16 48 8B 0D ? ? ? ? 45 33 C9 45 8D 41 0E E8 ? ? ? ? 48 8B F8 - Redux E3DEMO
+			mov_g_level = FindPatternInEXE(
+				"\x48\x8B\x0D\x00\x00\x00\x00\x48\x8D\x15\x00\x00\x00\x00\x88\x81\x00\x00\x00\x00\x48\x85\xD2\x74\x16\x48\x8B\x0D\x00\x00\x00\x00\x45\x33\xC9\x45\x8D\x41\x0E\xE8\x00\x00\x00\x00\x48\x8B\xF8",
+				"xxx????xxx????xx????xxxxxxxx????xxxxxxxx????xxx");
 
-			// 48 8B 05 ? ? ? ? 4C 8D 85 ? ? ? ? 48 8D 95 ? ? ? ? 48 8B 58 10 48 8D 4C 24 ? E8 ? ? ? ? 48 8B CB 48 89 7C 24 ? 0F 57 DB 0F 57 D2 48 8B D0 E8 ? ? ? ? 48 8D 8D ? ? ? ? E9 - Redux STEAM
-			mov_g_game = FindPatternInEXE(
-				"\x48\x8B\x05\x00\x00\x00\x00\x4C\x8D\x85\x00\x00\x00\x00\x48\x8D\x95\x00\x00\x00\x00\x48\x8B\x58\x10\x48\x8D\x4C\x24\x00\xE8\x00\x00\x00\x00\x48\x8B\xCB\x48\x89\x7C\x24\x00\x0F\x57\xDB\x0F\x57\xD2\x48\x8B\xD0\xE8\x00\x00\x00\x00\x48\x8D\x8D\x00\x00\x00\x00\xE9",
-				"xxx????xxx????xxx????xxxxxxxx?x????xxxxxxx?xxxxxxxxxx????xxx????x");
-
-			DWORD64 mov_g_string_container = NULL;
-
-			if (mov_g_game != NULL) {
-				// 48 8B 0D ? ? ? ? 48 8D 15 ? ? ? ? 88 81 ? ? ? ? 48 85 D2 74 16 48 8B 0D ? ? ? ? 45 33 C9 45 8D 41 0E E8 ? ? ? ? 48 8B F8 48 8D 55 0F - Redux STEAM
-				mov_g_level = FindPatternInEXE(
-					"\x48\x8B\x0D\x00\x00\x00\x00\x48\x8D\x15\x00\x00\x00\x00\x88\x81\x00\x00\x00\x00\x48\x85\xD2\x74\x16\x48\x8B\x0D\x00\x00\x00\x00\x45\x33\xC9\x45\x8D\x41\x0E\xE8\x00\x00\x00\x00\x48\x8B\xF8\x48\x8D\x55\x0F",
-					"xxx????xxx????xx????xxxxxxxx????xxxxxxxx????xxxxxxx");
-
-				// 48 8B 0D ? ? ? ? 48 8D 54 24 ? 45 33 C9 44 8B C0 E8 ? ? ? ? 48 8B 4F 08 48 85 C9 74 04 F0 FF 49 08 - Redux STEAM
-				mov_g_string_container = FindPatternInEXE(
-					"\x48\x8B\x0D\x00\x00\x00\x00\x48\x8D\x54\x24\x00\x45\x33\xC9\x44\x8B\xC0\xE8\x00\x00\x00\x00\x48\x8B\x4F\x08\x48\x85\xC9\x74\x04\xF0\xFF\x49\x08",
-					"xxx????xxxx?xxxxxxx????xxxxxxxxxxxxx");
-
-				// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 41 56 41 57 48 83 EC 30 48 8B 2D ? ? ? ? 45 8B F1 4D 8B F8 48 8B FA FF 15 - Redux STEAM
-				igame_level_signal = FindPatternInEXE(
-					"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x57\x41\x56\x41\x57\x48\x83\xEC\x30\x48\x8B\x2D\x00\x00\x00\x00\x45\x8B\xF1\x4D\x8B\xF8\x48\x8B\xFA\xFF\x15",
-					"xxxx?xxxx?xxxx?xxxxxxxxxxxx????xxxxxxxxxxx");
+			if (mov_g_level != NULL) {
+				isInited = true;
+				Utils::Redux_ver = REDUX_VER::E3_DEMO;
 			} else {
-				isReduxEGS = true;
+				// 48 8B 0D ? ? ? ? 48 8D 15 ? ? ? ? 45 33 C9 88 81 - Redux EGS
+				mov_g_level = FindPatternInEXE(
+					"\x48\x8B\x0D\x00\x00\x00\x00\x48\x8D\x15\x00\x00\x00\x00\x45\x33\xC9\x88\x81",
+					"xxx????xxx????xxxxx");
 
-				// 48 8B 05 ? ? ? ? 4C 8D 85 ? ? ? ? 48 8D 95 ? ? ? ? 48 8D 4C 24 ? 48 8B 58 10 E8 ? ? ? ? 48 8B D0 48 89 7C 24 ? 0F 57 DB 0F 57 D2 48 8B CB E8 ? ? ? ? B8 ? ? ? ? E9 ? ? ? ? 48 8B 05 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? 48 8B 88 - Redux EGS
-				mov_g_game = FindPatternInEXE(
-					"\x48\x8B\x05\x00\x00\x00\x00\x4C\x8D\x85\x00\x00\x00\x00\x48\x8D\x95\x00\x00\x00\x00\x48\x8D\x4C\x24\x00\x48\x8B\x58\x10\xE8\x00\x00\x00\x00\x48\x8B\xD0\x48\x89\x7C\x24\x00\x0F\x57\xDB\x0F\x57\xD2\x48\x8B\xCB\xE8\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x84\x00\x00\x00\x00\x48\x8B\x88",
-					"xxx????xxx????xxx????xxxx?xxxxx????xxxxxxx?xxxxxxxxxx????x????x????xxx????xxxxx????xxx");
-
-				// 48 8B 0D ? ? ? ? 44 38 7C 24 ? 75 0E 48 8B 41 50 F0 FF 40 08 48 8B 41 50 EB 1E 48 8D 44 24 ? 48 FF C6 - Redux EGS
-				mov_g_string_container = FindPatternInEXE(
-					"\x48\x8B\x0D\x00\x00\x00\x00\x44\x38\x7C\x24\x00\x75\x0E\x48\x8B\x41\x50\xF0\xFF\x40\x08\x48\x8B\x41\x50\xEB\x1E\x48\x8D\x44\x24\x00\x48\xFF\xC6",
-					"xxx????xxxx?xxxxxxxxxxxxxxxxxxxx?xxx");
-
-				// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 30 48 8B 3D ? ? ? ? 41 8B E9 4D 8B F0 48 8B F2 FF 15 - Redux EGS
-				igame_level_signal = FindPatternInEXE(
-					"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x30\x48\x8B\x3D\x00\x00\x00\x00\x41\x8B\xE9\x4D\x8B\xF0\x48\x8B\xF2\xFF\x15",
-					"xxxx?xxxx?xxxx?xxxx?xxxxxxxxx????xxxxxxxxxxx");
+				if (mov_g_level != NULL) {
+					isInited = true;
+					Utils::Redux_ver = REDUX_VER::EGS;
+				} else {
+					// 48 8B 0D ? ? ? ? 48 8D 15 ? ? ? ? 45 33 C9 41 B8 ? ? ? ? 88 81 ? ? ? ? 48 8B 0D ? ? ? ? E8 ? ? ? ? 45 33 C9 - Redux NextGen
+					mov_g_level = FindPatternInEXE(
+						"\x48\x8B\x0D\x00\x00\x00\x00\x48\x8D\x15\x00\x00\x00\x00\x45\x33\xC9\x41\xB8\x00\x00\x00\x00\x88\x81\x00\x00\x00\x00\x48\x8B\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x45\x33\xC9",
+						"xxx????xxx????xxxxx????xx????xxx????x????xxx");
+					if (mov_g_level != NULL) {
+						isInited = true;
+						Utils::Redux_ver = REDUX_VER::NEXTGEN;
+					}
+				}
 			}
-
-			// 48 89 5c 24 ? 48 89 6c 24 ? 48 89 74 24 ? 57 41 54 41 55 41 56 41 57 48 83 ec ? 48 8b 41 ? 45 0f b7 e1 - Redux STEAM & EGS
-			Utils::str_container_do_dock = (_str_container_do_dock)FindPatternInEXE(
-				"\x48\x89\x5c\x24\x00\x48\x89\x6c\x24\x00\x48\x89\x74\x24\x00\x57\x41\x54\x41\x55\x41\x56\x41\x57\x48\x83\xec\x00\x48\x8b\x41\x00\x45\x0f\xb7\xe1",
-				"xxxx?xxxx?xxxx?xxxxxxxxxxxx?xxx?xxxx");
-
-			g_string_container = (void**)GetAddrFromRelativeInstr(mov_g_string_container, 7, 3);
 		}
 	}
 	else if (GetModuleHandle("arktika1.exe") != NULL) {
@@ -306,7 +289,81 @@ Utils::Utils()
 	}
 
 	if (isInited) {
-		if ((isRedux() && isReduxEGS) || isArktika()) {
+		if (isRedux()) {
+			DWORD64 mov_g_string_container = NULL;
+
+			if (isReduxEGS()) {
+				// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 30 48 8B 3D ? ? ? ? 41 8B E9 4D 8B F0 48 8B F2 FF 15 - Redux EGS
+				igame_level_signal = FindPatternInEXE(
+					"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x30\x48\x8B\x3D\x00\x00\x00\x00\x41\x8B\xE9\x4D\x8B\xF0\x48\x8B\xF2\xFF\x15",
+					"xxxx?xxxx?xxxx?xxxx?xxxxxxxxx????xxxxxxxxxxx");
+
+				// 48 8B 05 ? ? ? ? 4C 8D 85 ? ? ? ? 48 8D 95 ? ? ? ? 48 8D 4C 24 ? 48 8B 58 10 E8 ? ? ? ? 48 8B D0 48 89 7C 24 ? 0F 57 DB 0F 57 D2 48 8B CB E8 ? ? ? ? B8 ? ? ? ? E9 ? ? ? ? 48 8B 05 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? 48 8B 88 - Redux EGS
+				mov_g_game = FindPatternInEXE(
+					"\x48\x8B\x05\x00\x00\x00\x00\x4C\x8D\x85\x00\x00\x00\x00\x48\x8D\x95\x00\x00\x00\x00\x48\x8D\x4C\x24\x00\x48\x8B\x58\x10\xE8\x00\x00\x00\x00\x48\x8B\xD0\x48\x89\x7C\x24\x00\x0F\x57\xDB\x0F\x57\xD2\x48\x8B\xCB\xE8\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x84\x00\x00\x00\x00\x48\x8B\x88",
+					"xxx????xxx????xxx????xxxx?xxxxx????xxxxxxx?xxxxxxxxxx????x????x????xxx????xxxxx????xxx");
+			} else if (isReduxNextGen()) {
+				// 48 89 5C 24 ? 55 56 57 41 54 41 55 41 56 41 57 48 83 EC 20 48 8B 41 40 45 0F B7 E1 - Redux NextGen
+				Utils::str_container_do_dock = (_str_container_do_dock)FindPatternInEXE(
+					"\x48\x89\x5C\x24\x00\x55\x56\x57\x41\x54\x41\x55\x41\x56\x41\x57\x48\x83\xEC\x20\x48\x8B\x41\x40\x45\x0F\xB7\xE1",
+					"xxxx?xxxxxxxxxxxxxxxxxxxxxxx");
+
+				// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 30 48 8B 35 ? ? ? ? 41 8B E9 4D 8B F0 48 8B FA FF 15 - Redux NextGen
+				igame_level_signal = FindPatternInEXE(
+					"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x30\x48\x8B\x35\x00\x00\x00\x00\x41\x8B\xE9\x4D\x8B\xF0\x48\x8B\xFA\xFF\x15",
+					"xxxx?xxxx?xxxx?xxxx?xxxxxxxxx????xxxxxxxxxxx");
+
+				// 48 8B 05 ? ? ? ? 4C 8D 85 ? ? ? ? 48 8D 95 ? ? ? ? 48 8D 4C 24 ? 48 8B 58 10 E8 ? ? ? ? 48 8B D0 48 89 7C 24 ? 0F 57 DB 0F 57 D2 48 8B CB E8 ? ? ? ? B8 ? ? ? ? E9 ? ? ? ? 48 8B 05 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? 48 8B 80 - Redux NextGen
+				mov_g_game = FindPatternInEXE(
+					"\x48\x8B\x05\x00\x00\x00\x00\x4C\x8D\x85\x00\x00\x00\x00\x48\x8D\x95\x00\x00\x00\x00\x48\x8D\x4C\x24\x00\x48\x8B\x58\x10\xE8\x00\x00\x00\x00\x48\x8B\xD0\x48\x89\x7C\x24\x00\x0F\x57\xDB\x0F\x57\xD2\x48\x8B\xCB\xE8\x00\x00\x00\x00\xB8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x84\x00\x00\x00\x00\x48\x8B\x80",
+					"xxx????xxx????xxx????xxxx?xxxxx????xxxxxxx?xxxxxxxxxx????x????x????xxx????xxxxx????xxx");
+			}
+
+			if (isReduxRelease() || isReduxE3Demo()) {
+				// 48 8B C4 48 89 48 08 48 89 50 10 4C 89 40 18 4C 89 48 20 48 81 EC ? ? ? ? 4C 8B C1 4C 8D 48 10 48 8D 4C 24 ? BA ? ? ? ? FF 15 ? ? ? ? 33 C9 C6 84 24 ? ? ? ? ? 48 89 4C 24 ? 85 C0 0F 89 ? ? ? ? 48 8B 94 24 ? ? ? ? 48 89 4C 24 - Redux Steam & E3DEMO
+				Utils::rlog = (_rlog)FindPatternInEXE(
+					"\x48\x8B\xC4\x48\x89\x48\x08\x48\x89\x50\x10\x4C\x89\x40\x18\x4C\x89\x48\x20\x48\x81\xEC\x00\x00\x00\x00\x4C\x8B\xC1\x4C\x8D\x48\x10\x48\x8D\x4C\x24\x00\xBA\x00\x00\x00\x00\xFF\x15\x00\x00\x00\x00\x33\xC9\xC6\x84\x24\x00\x00\x00\x00\x00\x48\x89\x4C\x24\x00\x85\xC0\x0F\x89\x00\x00\x00\x00\x48\x8B\x94\x24\x00\x00\x00\x00\x48\x89\x4C\x24",
+					"xxxxxxxxxxxxxxxxxxxxxx????xxxxxxxxxxx?x????xx????xxxxx?????xxxx?xxxx????xxxx????xxxx");
+
+				// 48 8B 0D ? ? ? ? 48 8D 54 24 ? 45 33 C9 44 8B C0 E8 ? ? ? ? 48 8B 4F 08 48 85 C9 74 04 F0 FF 49 08 - Redux STEAM & E3DEMO
+				mov_g_string_container = FindPatternInEXE(
+					"\x48\x8B\x0D\x00\x00\x00\x00\x48\x8D\x54\x24\x00\x45\x33\xC9\x44\x8B\xC0\xE8\x00\x00\x00\x00\x48\x8B\x4F\x08\x48\x85\xC9\x74\x04\xF0\xFF\x49\x08",
+					"xxx????xxxx?xxxxxxx????xxxxxxxxxxxxx");
+
+				// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 41 56 41 57 48 83 EC 30 48 8B 2D ? ? ? ? 45 8B F1 4D 8B F8 48 8B FA FF 15 - Redux STEAM & E3DEMO
+				igame_level_signal = FindPatternInEXE(
+					"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x57\x41\x56\x41\x57\x48\x83\xEC\x30\x48\x8B\x2D\x00\x00\x00\x00\x45\x8B\xF1\x4D\x8B\xF8\x48\x8B\xFA\xFF\x15",
+					"xxxx?xxxx?xxxx?xxxxxxxxxxxx????xxxxxxxxxxx");
+
+				// 48 8B 05 ? ? ? ? 4C 8D 85 ? ? ? ? 48 8D 95 ? ? ? ? 48 8B 58 10 48 8D 4C 24 ? E8 ? ? ? ? 48 8B CB 48 89 7C 24 ? 0F 57 DB 0F 57 D2 48 8B D0 E8 ? ? ? ? 48 8D 8D ? ? ? ? E9 - Redux STEAM & E3DEMO
+				mov_g_game = FindPatternInEXE(
+					"\x48\x8B\x05\x00\x00\x00\x00\x4C\x8D\x85\x00\x00\x00\x00\x48\x8D\x95\x00\x00\x00\x00\x48\x8B\x58\x10\x48\x8D\x4C\x24\x00\xE8\x00\x00\x00\x00\x48\x8B\xCB\x48\x89\x7C\x24\x00\x0F\x57\xDB\x0F\x57\xD2\x48\x8B\xD0\xE8\x00\x00\x00\x00\x48\x8D\x8D\x00\x00\x00\x00\xE9",
+					"xxx????xxx????xxx????xxxxxxxx?x????xxxxxxx?xxxxxxxxxx????xxx????x");
+			}
+
+			if (isReduxRelease() || isReduxEGS() || isReduxE3Demo()) {
+				// 48 89 5c 24 ? 48 89 6c 24 ? 48 89 74 24 ? 57 41 54 41 55 41 56 41 57 48 83 ec ? 48 8b 41 ? 45 0f b7 e1 - Redux STEAM & EGS & E3DEMO
+				Utils::str_container_do_dock = (_str_container_do_dock)FindPatternInEXE(
+					"\x48\x89\x5c\x24\x00\x48\x89\x6c\x24\x00\x48\x89\x74\x24\x00\x57\x41\x54\x41\x55\x41\x56\x41\x57\x48\x83\xec\x00\x48\x8b\x41\x00\x45\x0f\xb7\xe1",
+					"xxxx?xxxx?xxxx?xxxxxxxxxxxx?xxx?xxxx");
+			}
+
+			if (isReduxEGS() || isReduxNextGen()) {
+				// 48 8B C4 48 89 48 08 48 89 50 10 4C 89 40 18 4C 89 48 20 53 57 48 81 EC ? ? ? ? 48 8B D9 48 8D 78 10 E8 ? ? ? ? 48 89 7C 24 - Redux EGS & NextGen
+				Utils::rlog = (_rlog)FindPatternInEXE(
+					"\x48\x8B\xC4\x48\x89\x48\x08\x48\x89\x50\x10\x4C\x89\x40\x18\x4C\x89\x48\x20\x53\x57\x48\x81\xEC\x00\x00\x00\x00\x48\x8B\xD9\x48\x8D\x78\x10\xE8\x00\x00\x00\x00\x48\x89\x7C\x24",
+					"xxxxxxxxxxxxxxxxxxxxxxxx????xxxxxxxx????xxxx");
+
+				// 48 8B 0D ? ? ? ? 44 38 7C 24 ? 75 0E 48 8B 41 50 F0 FF 40 08 48 8B 41 50 EB 1E 48 8D 44 24 ? 48 FF C6 - Redux EGS & NextGen
+				mov_g_string_container = FindPatternInEXE(
+					"\x48\x8B\x0D\x00\x00\x00\x00\x44\x38\x7C\x24\x00\x75\x0E\x48\x8B\x41\x50\xF0\xFF\x40\x08\x48\x8B\x41\x50\xEB\x1E\x48\x8D\x44\x24\x00\x48\xFF\xC6",
+					"xxx????xxxx?xxxxxxxxxxxxxxxxxxxx?xxx");
+			}
+
+			g_string_container = (void**)GetAddrFromRelativeInstr(mov_g_string_container, 7, 3);
+		}
+
+		if (isArktika()) {
 			// 48 8B 0D ? ? ? ? 48 8D 15 ? ? ? ? 45 33 C9 88 81 - Redux EGS & Arktika
 			mov_g_level = FindPatternInEXE(
 				"\x48\x8B\x0D\x00\x00\x00\x00\x48\x8D\x15\x00\x00\x00\x00\x45\x33\xC9\x88\x81",
@@ -318,18 +375,21 @@ Utils::Utils()
 			Utils::GetConsole = (_GetConsole)FindPatternInEXE(
 				"\x48\x83\xEC\x00\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x85\x00\x00\x00\x00\x48\x89\x5C\x24\x00\x48\x89",
 				"xxx?xxx????xxxxx????xxxx?xx");
+		} else if(isRedux() && isReduxEGS()) {
+			// 48 83 EC 38 48 8B 05 ? ? ? ? 48 85 C0 0F 85 ? ? ? ? 48 89 5C 24 ? 48 89 - Redux EGS
+			Utils::GetConsole = (_GetConsole)FindPatternInEXE(
+				"\x48\x83\xEC\x38\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x85\x00\x00\x00\x00\x48\x89\x5C\x24\x00\x48\x89",
+				"xxxxxxx????xxxxx????xxxx?xx");
+		} else if (isRedux() && isReduxNextGen()) {
+			// 48 83 EC 28 48 8B 05 ? ? ? ? 48 85 C0 0F 85 ? ? ? ? 48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? E8 - Redux NextGen
+			Utils::GetConsole = (_GetConsole)FindPatternInEXE(
+				"\x48\x83\xEC\x28\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x85\x00\x00\x00\x00\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\xE8",
+				"xxxxxxx????xxxxx????xxxx?xxxx?xxxx?x");
 		} else {
-			// 48 83 ec ? 48 8b 05 ? ? ? ? 48 85 c0 75 ? e8 ? ? ? ? 48 8b 05 - Redux STEAM and Arktika1 and Exodus NEW
+			// 48 83 ec ? 48 8b 05 ? ? ? ? 48 85 c0 75 ? e8 ? ? ? ? 48 8b 05 - Redux STEAM & E3DEMO & Arktika1 & Exodus NEW
 			Utils::GetConsole = (_GetConsole)FindPatternInEXE(
 				"\x48\x83\xec\x00\x48\x8b\x05\x00\x00\x00\x00\x48\x85\xc0\x75\x00\xe8\x00\x00\x00\x00\x48\x8b\x05",
 				"xxx?xxx????xxxx?x????xxx");
-
-			if (Utils::GetConsole == NULL) {
-				// 48 83 EC 38 48 8B 05 ? ? ? ? 48 85 C0 0F 85 ? ? ? ? 48 89 5C 24 ? 48 89 - Redux EGS
-				Utils::GetConsole = (_GetConsole)FindPatternInEXE(
-					"\x48\x83\xEC\x38\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0\x0F\x85\x00\x00\x00\x00\x48\x89\x5C\x24\x00\x48\x89",
-					"xxxxxxx????xxxxx????xxxx?xx");
-			}
 		}
 
 		// вычисляем адрес и получаем g_game
@@ -341,11 +401,6 @@ Utils::Utils()
 		}
 	}
 #endif
-}
-
-GAME Utils::GetGame()
-{
-	return Game;
 }
 
 #ifdef _WIN64
@@ -362,6 +417,26 @@ bool Utils::isArktika()
 bool Utils::isExodus()
 {
 	return Game == GAME::EXODUS;
+}
+
+bool Utils::isReduxRelease()
+{
+	return Redux_ver == REDUX_VER::RELEASE;
+}
+
+bool Utils::isReduxEGS()
+{
+	return Redux_ver == REDUX_VER::EGS;
+}
+
+bool Utils::isReduxE3Demo()
+{
+	return Redux_ver == REDUX_VER::E3_DEMO;
+}
+
+bool Utils::isReduxNextGen()
+{
+	return Redux_ver == REDUX_VER::NEXTGEN;
 }
 
 DWORD64 Utils::GetAddrFromRelativeInstr(DWORD64 instr_addr, int instr_len, int rel_offset)

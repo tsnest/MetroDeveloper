@@ -29,12 +29,15 @@ NoIntro::NoIntro()
 		DWORD64 IntroAddress = NULL;
 
 		if (Utils::isRedux()) {
-			// 73 1D 33 C9 - Redux STEAM
-			IntroAddress = FindPatternInEXE("\x73\x1D\x33\xC9", "xxxx");
-
-			if (IntroAddress == NULL) {
+			if (Utils::isReduxRelease() || Utils::isReduxE3Demo()) {
+				// 73 1D 33 C9 - Redux STEAM & E3DEMO
+				IntroAddress = FindPatternInEXE("\x73\x1D\x33\xC9", "xxxx");
+			} else if (Utils::isReduxEGS()) {
 				// 73 15 0F B7 C0 48 8D 8D - Redux EGS
 				IntroAddress = FindPatternInEXE("\x73\x15\x0F\xB7\xC0\x48\x8D\x8D", "xxxxxxxx");
+			} else if (Utils::isReduxNextGen()) {
+				// 73 12 48 8D 8D - Redux NextGen
+				IntroAddress = FindPatternInEXE("\x73\x12\x48\x8D\x8D", "xxxxx");
 			}
 		} else if (Utils::isExodus()) {
 			// 73 ? 0F B7 C0 48 8D 8D - Exodus

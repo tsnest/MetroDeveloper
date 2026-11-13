@@ -153,7 +153,7 @@
     <ClCompile Include="MultiplayerFix.cpp">
       <Filter>Файлы исходного кода\patches</Filter>
     </ClCompile>
-    <ClCompile Include="DisableStartupCheck.cpp">
+    <ClCompile Include="DisableEulaAndTelemetry.cpp">
       <Filter>Файлы исходного кода\patches</Filter>
     </ClCompile>
   </ItemGroup>
@@ -272,7 +272,7 @@
     <ClInclude Include="MultiplayerFix.h">
       <Filter>Заголовочные файлы\patches</Filter>
     </ClInclude>
-    <ClInclude Include="DisableStartupCheck.h">
+    <ClInclude Include="DisableEulaAndTelemetry.h">
       <Filter>Заголовочные файлы\patches</Filter>
     </ClInclude>
   </ItemGroup>

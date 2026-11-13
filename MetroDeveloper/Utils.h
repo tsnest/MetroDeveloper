@@ -42,13 +42,22 @@ enum GAME
 #endif
 };
 
+#ifdef _WIN64
+enum REDUX_VER
+{
+	RELEASE,
+	EGS,
+	E3_DEMO,
+	NEXTGEN
+};
+#endif
+
 class Utils : public Patcher
 {
 public:
 	Utils();
 
 	static GAME Game;
-	static GAME GetGame();
 
 	static bool isInited;
 
@@ -61,7 +70,12 @@ public:
 	static bool isArktika();
 	static bool isExodus();
 
-	static bool isReduxEGS;
+	static REDUX_VER Redux_ver;
+	static bool isReduxRelease();
+	static bool isReduxEGS();
+	static bool isReduxE3Demo();
+	static bool isReduxNextGen();
+
 	static bool isExodusPatched;
 
 	static DWORD64 GetAddrFromRelativeInstr(DWORD64 instr_addr, int instr_len, int rel_offset);

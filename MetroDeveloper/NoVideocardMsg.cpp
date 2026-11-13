@@ -4,7 +4,7 @@
 NoVideocardMsg::NoVideocardMsg()
 {
 #ifndef _WIN64
-	if ((Utils::is2033()) && Utils::GetBool("other", "no_videocard_msg", false)) // Only metro 2033
+	if (Utils::is2033() && Utils::GetBool("other", "no_videocard_msg", false)) // Only metro 2033
 	{
 		// 68 ? ? ? ? BF ? ? ? ? 8D 74 24 ? E8 ? ? ? ? 83 C4 ? 80 7C 24 ? ? 75 - для версии с патчами
 		LPVOID VideoMsgAddress = (LPVOID)FindPatternInEXE(

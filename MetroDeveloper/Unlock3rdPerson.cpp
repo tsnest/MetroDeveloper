@@ -10,13 +10,14 @@ Unlock3rdPerson::Unlock3rdPerson()
 	if (Utils::GetBool("other", "unlock_3rd_person_camera", false)) {
 #ifdef _WIN64
 		if (Utils::isRedux()) {
-			// 48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 30 48 63 41 68 48 8B F1 0F 29 74 24 ? 4C 8B 74 C1 ? 89 51 68 48 63 C2 0F 28 F2 48 8B 5C C1 ? 49 8B 06 49 8B CE 41 8B F9 FF 50 28 48 8B 03 44 8B C7 49 8B D6 48 8B CB FF 50 20 8B 05 ? ? ? ? A8 01 75 20 - Redux STEAM
-			base_npc_cameras_cam_set = (_base_npc_cameras_cam_set)FindPatternInEXE(
-				"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x30\x48\x63\x41\x68\x48\x8B\xF1\x0F\x29\x74\x24\x00\x4C\x8B\x74\xC1\x00\x89\x51\x68\x48\x63\xC2\x0F\x28\xF2\x48\x8B\x5C\xC1\x00\x49\x8B\x06\x49\x8B\xCE\x41\x8B\xF9\xFF\x50\x28\x48\x8B\x03\x44\x8B\xC7\x49\x8B\xD6\x48\x8B\xCB\xFF\x50\x20\x8B\x05\x00\x00\x00\x00\xA8\x01\x75\x20",
-				"xxxx?xxxx?xxxx?xxxxxxxxxxxxxxxxx?xxxx?xxxxxxxxxxxxx?xxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xxxx");
-
-			if (base_npc_cameras_cam_set == NULL) {
-				// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 30 48 63 41 68 48 8B E9 0F 29 74 24 ? 41 8B F9 0F 28 F2 48 8B 74 C1 ? 89 51 68 48 63 C2 48 8B 5C C1 ? 48 8B CE 48 8B 06 FF 50 28 48 8B 03 44 8B C7 48 8B D6 48 8B CB FF 50 20 E8 ? ? ? ? 48 8B D8 BF ? ? ? ? E8 - Redux EGS
+			if (Utils::isReduxRelease() || Utils::isReduxE3Demo()) {
+				// 48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 41 56 48 83 EC 30 48 63 41 68 48 8B F1 0F 29 74 24 ? 4C 8B 74 C1 ? 89 51 68 48 63 C2 0F 28 F2 48 8B 5C C1 ? 49 8B 06 49 8B CE 41 8B F9 FF 50 28 48 8B 03 44 8B C7 49 8B D6 48 8B CB FF 50 20 8B 05 ? ? ? ? A8 01 75 20 - Redux STEAM & E3DEMO
+				base_npc_cameras_cam_set = (_base_npc_cameras_cam_set)FindPatternInEXE(
+					"\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x41\x56\x48\x83\xEC\x30\x48\x63\x41\x68\x48\x8B\xF1\x0F\x29\x74\x24\x00\x4C\x8B\x74\xC1\x00\x89\x51\x68\x48\x63\xC2\x0F\x28\xF2\x48\x8B\x5C\xC1\x00\x49\x8B\x06\x49\x8B\xCE\x41\x8B\xF9\xFF\x50\x28\x48\x8B\x03\x44\x8B\xC7\x49\x8B\xD6\x48\x8B\xCB\xFF\x50\x20\x8B\x05\x00\x00\x00\x00\xA8\x01\x75\x20",
+					"xxxx?xxxx?xxxx?xxxxxxxxxxxxxxxxx?xxxx?xxxxxxxxxxxxx?xxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xxxx");
+			}
+			else if (Utils::isReduxEGS() || Utils::isReduxNextGen()) {
+				// 48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 30 48 63 41 68 48 8B E9 0F 29 74 24 ? 41 8B F9 0F 28 F2 48 8B 74 C1 ? 89 51 68 48 63 C2 48 8B 5C C1 ? 48 8B CE 48 8B 06 FF 50 28 48 8B 03 44 8B C7 48 8B D6 48 8B CB FF 50 20 E8 ? ? ? ? 48 8B D8 BF ? ? ? ? E8 - Redux EGS & NextGen
 				base_npc_cameras_cam_set = (_base_npc_cameras_cam_set)FindPatternInEXE(
 					"\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x48\x89\x74\x24\x00\x57\x48\x83\xEC\x30\x48\x63\x41\x68\x48\x8B\xE9\x0F\x29\x74\x24\x00\x41\x8B\xF9\x0F\x28\xF2\x48\x8B\x74\xC1\x00\x89\x51\x68\x48\x63\xC2\x48\x8B\x5C\xC1\x00\x48\x8B\xCE\x48\x8B\x06\xFF\x50\x28\x48\x8B\x03\x44\x8B\xC7\x48\x8B\xD6\x48\x8B\xCB\xFF\x50\x20\xE8\x00\x00\x00\x00\x48\x8B\xD8\xBF\x00\x00\x00\x00\xE8",
 					"xxxx?xxxx?xxxx?xxxxxxxxxxxxxxxx?xxxxxxxxxx?xxxxxxxxxx?xxxxxxxxxxxxxxxxxxxxxxxxx????xxxx????x");

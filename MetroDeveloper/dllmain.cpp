@@ -16,7 +16,6 @@
 #include "QuickSave.h"
 #include "Fly.h"
 #include "LogFile.h"
-#include "DisableStartupCheck.h"
 #include "MultiplayerFix.h"
 
 #ifdef _WIN64
@@ -26,6 +25,7 @@
 #include "ShadersHack.h"
 
 #include "DisableFiltersCostMod.h"
+#include "DisableEulaAndTelemetry.h"
 
 #else
 
@@ -63,7 +63,7 @@ void InitMetroDeveloper()
 	NavMapGen::NavMapGen();
 #else
 	DisableFiltersCostMod::DisableFiltersCostMod();
-	//DisableStartupCheck::DisableStartupCheck();
+	DisableEulaAndTelemetry::DisableEulaAndTelemetry();
 	MultiplayerFix::MultiplayerFix();
 
 	if (Utils::isArktika()) {

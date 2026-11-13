@@ -73,10 +73,17 @@ RestoreCommands::RestoreCommands()
 		}
 #else
 		if (Utils::isRedux()) {
-			// 8B 05 ? ? ? ? C1 E8 03 - Redux
-			DWORD64 mov = FindPatternInEXE("\x8B\x05\x00\x00\x00\x00\xC1\xE8\x03", "xx????xxx");
+			if (!Utils::isReduxNextGen()) {
+				// 8B 05 ? ? ? ? C1 E8 03 - Redux STEAM & E3DEMO & EGS
+				DWORD64 mov = FindPatternInEXE("\x8B\x05\x00\x00\x00\x00\xC1\xE8\x03", "xx????xxx");
 
-			igame_hud__flags = (unsigned int*)Utils::GetAddrFromRelativeInstr(mov, 6, 2);
+				igame_hud__flags = (unsigned int*)Utils::GetAddrFromRelativeInstr(mov, 6, 2);
+			} else {
+				// F6 05 ? ? ? ? ? 48 8B F0 - Redux NextGen
+				DWORD64 mov = FindPatternInEXE("\xF6\x05\x00\x00\x00\x00\x00\x48\x8B\xF0", "xx?????xxx");
+
+				igame_hud__flags = (unsigned int*)Utils::GetAddrFromRelativeInstr(mov, 7, 2);
+			}
 		}
 #endif
 	}
@@ -165,10 +172,12 @@ void RestoreCommands::cmd_register_commands() {
 	DWORD64 xref = FindPatternInEXE((char*)&str_g_toggle_aim, "xxxxxxxx");
 	DWORD64 xref1 = FindPatternInEXE((char*)&str_save_player, "xxxxxxxx");
 
-	if (Utils::GetGame() == GAME::REDUX) {
+	if (Utils::isRedux()) {
 		// 3. find pointer to existing command object based on xref
 		cmd_mask_struct_ll* pCmd = (cmd_mask_struct_ll*)(xref - offsetof(cmd_mask_struct_ll, _name));
 		uconsole_command_ll* pCmd1 = (uconsole_command_ll*)(xref1 - offsetof(uconsole_command_ll, _name));
+
+		cmd_integer_struct_ll* pCmd2 = (cmd_integer_struct_ll*)(xref1 - offsetof(cmd_integer_struct_ll, _name));
 
 		ps_actor_flags = pCmd->value;
 
